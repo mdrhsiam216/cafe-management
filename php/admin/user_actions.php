@@ -3,9 +3,7 @@ require_once 'admin_functions.php';
 require_once 'response_functions.php';
 validateAdminAccess();
 
-if (!isset($conn)) {
-    require_once '../../db/db_connection.php';
-}
+$conn = connect_db();
 $action = $_REQUEST['action'] ?? '';
 
 switch ($action) {

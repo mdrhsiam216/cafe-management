@@ -1,12 +1,11 @@
 <?php
 require_once 'admin_functions.php';
-session_start();
 validateAdminAccess();
 
 $conn = connect_db();
 $query = "SELECT * FROM coupons ORDER BY id DESC";
 $result = $conn->query($query);
-$coupons = $result->fetch_all(MYSQLI_ASSOC);
+$coupons = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 $conn->close();
 ?>
 <!DOCTYPE html>

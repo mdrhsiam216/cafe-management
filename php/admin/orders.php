@@ -1,6 +1,5 @@
 <?php
 require_once 'admin_functions.php';
-session_start();
 validateAdminAccess();
 
 $conn = connect_db();

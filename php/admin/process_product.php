@@ -5,12 +5,6 @@ validateAdminAccess();
 
 $conn = connect_db();
 
-// Set up error handling
-set_error_handler(function($errno, $errstr, $errfile, $errline) {
-    logError($errstr, ['file' => $errfile, 'line' => $errline]);
-    return true;
-});
-
 // Handle Add Product
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["add_product"])) {
     $name = trim($_POST["product_name"] ?? "");
@@ -52,15 +46,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["add_product"])) {
 
             $fileName = uniqid() . "." . $imageFileType;
             $targetPath = $targetDir . $fileName;
+            $dbImagePath = 'uploads/products/' . $fileName;
 
             if (move_uploaded_file($image["tmp_name"], $targetPath)) {
-                // Insert into database
-                $sql = "INSERT INTO products (name, description, price, category, image) VALUES (?, ?, ?, ?, ?)";
+                // Insert into database (name, price, image)
+                $sql = "INSERT INTO products (name, price, image) VALUES (?, ?, ?)";
                 $stmt = $conn->prepare($sql);
-                $stmt->bind_param("ssdss", $name, $description, $price, $category, $fileName);
+                $stmt->bind_param("sds", $name, $price, $dbImagePath);
 
                 if ($stmt->execute()) {
-                    header("Location: adminproduct.php?success=1");
+                    header("Location: manage-products.php?success=1");
                     exit;
                 } else {
                     $errors[] = "Error adding product: " . $conn->error;
@@ -76,7 +71,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["add_product"])) {
 
     if (!empty($errors)) {
         $errorString = implode("\\n", $errors);
-        header("Location: adminproduct.php?error=" . urlencode($errorString));
+        header("Location: manage-products.php?error=" . urlencode($errorString));
         exit;
     }
 }
@@ -94,7 +89,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_product"])) {
         $result = $stmt->get_result();
         
         if ($row = $result->fetch_assoc()) {
-            $imagePath = "../../resources/products/" . $row["image"];
+            $imageFile = basename($row["image"]);
+            $imagePath = "../../resources/uploads/products/" . $imageFile;
             
             // Delete the record from database
             $sql = "DELETE FROM products WHERE id = ?";
@@ -106,23 +102,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["delete_product"])) {
                 if (file_exists($imagePath)) {
                     unlink($imagePath);
                 }
-                header("Location: adminproduct.php?success=2");
+                header("Location: manage-products.php?success=2");
                 exit;
             } else {
-                header("Location: adminproduct.php?error=" . urlencode("Error deleting product."));
+                header("Location: manage-products.php?error=" . urlencode("Error deleting product."));
                 exit;
             }
         } else {
-            header("Location: adminproduct.php?error=" . urlencode("Product not found."));
+            header("Location: manage-products.php?error=" . urlencode("Product not found."));
             exit;
         }
         $stmt->close();
     } else {
-        header("Location: adminproduct.php?error=" . urlencode("Invalid product ID."));
+        header("Location: manage-products.php?error=" . urlencode("Invalid product ID."));
         exit;
     }
 }
 
 // Redirect back if no valid action
-header("Location: adminproduct.php");
+header("Location: manage-products.php");
 exit;

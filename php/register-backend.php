@@ -60,8 +60,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         if ($result->num_rows > 0) {
             $errors[] = "Email already exists";
         } else {
-            // In a production environment, you should use password_hash()
-            // This is just for demonstration purposes
+            // Store plaintext password (simple setup)
             // No need to set role as it defaults to 'customer' in the database
             $stmt = $conn->prepare("INSERT INTO users (name, email, password) VALUES (?, ?, ?)");
             $stmt->bind_param("sss", $name, $email, $password);

@@ -1,6 +1,5 @@
 <?php
 require_once 'admin_functions.php';
-session_start();
 validateAdminAccess();
 
 $conn = connect_db();
@@ -10,8 +9,9 @@ switch ($action) {
     case 'add_employee':
         $name = $_POST['name'] ?? '';
         $email = $_POST['email'] ?? '';
-        $password = $_POST['password'] ?? '';
-        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+    $password = $_POST['password'] ?? '';
+    // Store plaintext password (minimal setup)
+    $hashedPassword = $password;
         $dutyFrom = $_POST['dutyFrom'] ?? null;
         $dutyTo = $_POST['dutyTo'] ?? null;
 

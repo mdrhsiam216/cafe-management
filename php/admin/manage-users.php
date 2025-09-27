@@ -1,12 +1,11 @@
 <?php
 require_once 'admin_functions.php';
-session_start();
 validateAdminAccess();
 
 $conn = connect_db();
 $query = "SELECT id, name, email, role, photo FROM users WHERE role = 'customer' ORDER BY id DESC";
 $result = $conn->query($query);
-$users = $result->fetch_all(MYSQLI_ASSOC);
+$users = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 $conn->close();
 ?>
 <!DOCTYPE html>

@@ -1,6 +1,6 @@
 <?php
-session_start();
-
+require_once 'admin_functions.php';
+validateAdminAccess();
 
 $username = $email = $pic = $old_password = $new_password = $confirm_password = "";
 $username_err = $email_err = $pic_err = $old_password_err = $new_password_err = $confirm_password_err = "";
@@ -89,11 +89,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && (!isset($_POST['do']) || $_POST['do
 
         <nav class="navbar">
             <ul class="nav-links">
-                <li><a href="../php/admindash.php">Home</a></li>
-                <li><a href="../php/adminorder.php">Orders</a></li>
-                <li><a href="../php/adminproduct.php">Products</a></li>
-                <li><a href="../php/adminuser.php">Users</a></li>
-                <li><a href="../php/adminprofile.php" class="active">Profile</a></li>
+                <li><a href="dashboard.php">Home</a></li>
+                <li><a href="orders.php">Orders</a></li>
+                <li><a href="manage-products.php">Products</a></li>
+                <li><a href="manage-users.php">Users</a></li>
+                <li><a href="adminprofile.php" class="active">Profile</a></li>
             </ul>
         </nav>
 

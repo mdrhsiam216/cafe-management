@@ -14,12 +14,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'add':
                 $name = trim($_POST['name']);
                 $price = floatval($_POST['price']);
-                $description = trim($_POST['description']);
-                $category = trim($_POST['category']);
+                // Only store name, price and image (simplified schema)
                 
                 // Validate inputs
-                if (empty($name) || $price <= 0 || empty($category)) {
-                    $error_message = "Please fill all required fields with valid values.";
+                if (empty($name) || $price <= 0) {
+                    $error_message = "Please provide product name and a valid price.";
                     break;
                 }
                 
@@ -57,8 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 
                 try {
-                    $stmt = $conn->prepare("INSERT INTO products (name, price, description, category, image) VALUES (?, ?, ?, ?, ?)");
-                    $stmt->bind_param("sdsss", $name, $price, $description, $category, $photo);
+                    $stmt = $conn->prepare("INSERT INTO products (name, price, image) VALUES (?, ?, ?)");
+                    $stmt->bind_param("sds", $name, $price, $photo);
                     
                     if (!$stmt->execute()) {
                         throw new Exception("Failed to add product");
@@ -66,8 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $success_message = "Product added successfully!";
                                     $success_message = "Product added successfully!";
                 } catch (Exception $e) {
-                    logError($e->getMessage());
-                    $error_message = "Failed to add product. Please try again.";
+                    $error_message = "Failed to add product. Please try again. " . $e->getMessage();
                     // Clean up uploaded file if database insert fails
                     if (isset($uploadPath) && file_exists($uploadPath)) {
                         unlink($uploadPath);
@@ -90,8 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 try {
                     // Handle photo upload for update
-                    $photo = $_POST['current_photo'];
-                    if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+                        $photo = $_POST['current_photo'] ?? null;
+                        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
                         $uploadDir = '../../resources/uploads/products/';
                         if (!file_exists($uploadDir)) {
                             mkdir($uploadDir, 0777, true);
@@ -123,8 +121,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
                     
-                    $stmt = $conn->prepare("UPDATE products SET name = ?, price = ?, description = ?, category = ?, image = ? WHERE id = ?");
-                    $stmt->bind_param("sdsssi", $name, $price, $description, $category, $photo, $id);
+                    $stmt = $conn->prepare("UPDATE products SET name = ?, price = ?, image = ? WHERE id = ?");
+                    $stmt->bind_param("sdsi", $name, $price, $photo, $id);
                     
                     if (!$stmt->execute()) {
                         throw new Exception("Failed to update product");
@@ -132,8 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $success_message = "Product updated successfully!";
                     $success_message = "Product updated successfully!";
                 } catch (Exception $e) {
-                    logError($e->getMessage());
-                    $error_message = "Failed to update product. Please try again.";
+                    $error_message = "Failed to update product. Please try again. " . $e->getMessage();
                     // Clean up uploaded file if database update fails
                     if (isset($uploadPath) && file_exists($uploadPath)) {
                         unlink($uploadPath);
@@ -172,8 +169,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $success_message = "Product deleted successfully!";
                 } catch (Exception $e) {
-                    logError($e->getMessage());
-                    $error_message = "Failed to delete product. Please try again.";
+                    $error_message = "Failed to delete product. Please try again. " . $e->getMessage();
                 }
                 break;
         }
@@ -213,8 +209,7 @@ try {
     $result = $stmt->get_result();
     $products = $result->fetch_all(MYSQLI_ASSOC);
 } catch (Exception $e) {
-    logError($e->getMessage());
-    $error_message = "Failed to fetch products. Please try again.";
+    $error_message = "Failed to fetch products. Please try again. " . $e->getMessage();
 }
 // Get unique categories for filter
 try {
@@ -224,7 +219,6 @@ try {
         $categories[] = $row[0];
     }
 } catch (Exception $e) {
-    logError($e->getMessage());
     $categories = array();
 }
 ?>
@@ -293,16 +287,14 @@ try {
                     <?php foreach ($products as $product): ?>
                         <div class="product-card">
                             <div class="product-image">
-                                <?php if ($product['photo']): ?>
-                                    <img src="../<?php echo htmlspecialchars($product['photo']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
+                                <?php if (!empty($product['image'])): ?>
+                                    <img src="../../resources/<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
                                 <?php else: ?>
                                     <div class="no-image">No Image</div>
                                 <?php endif; ?>
                             </div>
                             <div class="product-info">
                                 <h3><?php echo htmlspecialchars($product['name']); ?></h3>
-                                <p class="product-category"><?php echo htmlspecialchars($product['category']); ?></p>
-                                <p class="product-description"><?php echo htmlspecialchars($product['description']); ?></p>
                                 <p class="product-price">$<?php echo number_format($product['price'], 2); ?></p>
                                 <div class="product-actions">
                                     <button class="btn btn-edit btn-small" onclick="openEditModal(<?php echo htmlspecialchars(json_encode($product)); ?>)">Edit</button>
@@ -340,24 +332,7 @@ try {
                     <input type="number" id="price" name="price" step="0.01" min="0" required>
                 </div>
                 
-                <div class="form-group">
-                    <label for="category">Category:</label>
-                    <select id="category" name="category" required>
-                        <option value="">Select Category</option>
-                        <option value="Coffee">Coffee</option>
-                        <option value="Tea">Tea</option>
-                        <option value="Pastries">Pastries</option>
-                        <option value="Sandwiches">Sandwiches</option>
-                        <option value="Desserts">Desserts</option>
-                        <option value="Cold Drinks">Cold Drinks</option>
-                        <option value="Hot Drinks">Hot Drinks</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="description">Description:</label>
-                    <textarea id="description" name="description" rows="3"></textarea>
-                </div>
+                <!-- simplified: only name, price, image are stored -->
                 
                 <div class="form-group">
                     <label for="photo">Product Photo:</label>
@@ -393,24 +368,7 @@ try {
                     <input type="number" id="edit_price" name="price" step="0.01" min="0" required>
                 </div>
                 
-                <div class="form-group">
-                    <label for="edit_category">Category:</label>
-                    <select id="edit_category" name="category" required>
-                        <option value="">Select Category</option>
-                        <option value="Coffee">Coffee</option>
-                        <option value="Tea">Tea</option>
-                        <option value="Pastries">Pastries</option>
-                        <option value="Sandwiches">Sandwiches</option>
-                        <option value="Desserts">Desserts</option>
-                        <option value="Cold Drinks">Cold Drinks</option>
-                        <option value="Hot Drinks">Hot Drinks</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="edit_description">Description:</label>
-                    <textarea id="edit_description" name="description" rows="3"></textarea>
-                </div>
+                <!-- simplified: only name, price, image are stored -->
                 
                 <div class="form-group">
                     <label for="edit_photo">Product Photo:</label>
@@ -454,14 +412,12 @@ try {
             document.getElementById('edit_id').value = product.id;
             document.getElementById('edit_name').value = product.name;
             document.getElementById('edit_price').value = product.price;
-            document.getElementById('edit_category').value = product.category;
-            document.getElementById('edit_description').value = product.description || '';
-            document.getElementById('edit_current_photo').value = product.photo || '';
+            document.getElementById('edit_current_photo').value = product.image || '';
             
             // Show current photo preview
             const preview = document.getElementById('current_photo_preview');
-            if (product.photo) {
-                preview.innerHTML = `<img src="../${product.photo}" alt="Current photo" style="max-width: 100px; margin-top: 10px; border-radius: 4px;">`;
+            if (product.image) {
+                preview.innerHTML = `<img src="../../resources/${product.image}" alt="Current photo" style="max-width: 100px; margin-top: 10px; border-radius: 4px;">`;
             } else {
                 preview.innerHTML = '<p style="margin-top: 10px; color: #666;">No current photo</p>';
             }

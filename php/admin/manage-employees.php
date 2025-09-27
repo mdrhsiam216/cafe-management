@@ -1,6 +1,5 @@
 <?php
 require_once 'admin_functions.php';
-session_start();
 validateAdminAccess();
 
 $conn = connect_db();
@@ -9,7 +8,7 @@ $query = "SELECT u.id, u.name, u.email, s.dutyFrom, s.dutyTo
           JOIN staff s ON u.id = s.userId 
           WHERE u.role = 'staff'";
 $result = $conn->query($query);
-$employees = $result->fetch_all(MYSQLI_ASSOC);
+$employees = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 $conn->close();
 ?>
 <!DOCTYPE html>
