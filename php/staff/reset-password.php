@@ -1,0 +1,109 @@
+<?php
+// Simple server-side handling for reset password form (demo)
+session_start();
+
+$resetMessage = '';
+$emailValue = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+  $emailValue = htmlspecialchars($email, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+  if ($email === '') {
+    $resetMessage = 'Please enter your email address.';
+  } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $resetMessage = 'Please enter a valid email address.';
+  } else {
+    // Demo: in production, generate token, store it, and send email
+    $resetMessage = 'If that email is registered, a reset link was sent.';
+  }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reset Password - Skyline Coffee Shop</title>
+  <link rel="stylesheet" href="../CSS/reset-password.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;700&family=Open+Sans:wght@400;600&display=swap"
+    rel="stylesheet" />
+</head>
+
+<body>
+  <div class="container">
+    <div class="welcome-box">
+      <div class="hero-section">
+        <img src="../../resources/Brown Modern Circle Coffee Shop Logo.png" alt="Cafe Logo" class="logo" />
+        <h1>Reset Password</h1>
+        <p>Enter your email to receive a password reset link.</p>
+      </div>
+      <section class="reset-section">
+        <form id="reset-form" method="post" action="" novalidate>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required value="<?php echo $emailValue; ?>" />
+          </div>
+          <button type="submit" class="btn">Send Reset Link</button>
+        </form>
+        <?php if ($resetMessage): ?>
+          <p class="error" aria-live="polite"><?php echo htmlspecialchars($resetMessage, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></p>
+        <?php endif; ?>
+        <div class="links">
+          <a href="../PHP/staff-login.php">Login</a>|
+          <a>Register</a>
+        </div>
+      </section>
+      <footer class="footer">
+        <div class="footer-content">
+          <div class="footer-section" id="contact-section">
+            <h3>Contact Us</h3>
+            <p>
+              Email:
+              <a href="mailto:info@skylinecoffee.com">info@skylinecoffee.com</a>
+            </p>
+            <p>Phone: <a href="tel:+8801234567890">+880 123 456 7890</a></p>
+            <p>Address: 123 Skyline Avenue, Dhaka</p>
+          </div>
+          <div class="footer-section" id="about-section">
+            <h3>About Us</h3>
+            <p>
+              We are passionate about serving the finest coffee, crafted with
+              love and expertise. Join us for a unique coffee experience!
+            </p>
+          </div>
+          <div class="footer-section">
+            <h3>Newsletter</h3>
+            <p>Subscribe for exclusive offers!</p>
+            <input type="email" placeholder="Enter your email" class="newsletter-input" />
+            <button class="btn newsletter-btn">Subscribe</button>
+          </div>
+          <div class="footer-section">
+            <h3>Follow Us</h3>
+            <div class="social-links">
+              <a href="https://facebook.com" class="social-icon" aria-label="Facebook">
+                <img src="https://img.icons8.com/ios-filled/50/ffffff/facebook-new.png" alt="Facebook Logo"
+                  class="social-logo" />
+              </a>
+              <a href="https://instagram.com" class="social-icon" aria-label="Instagram">
+                <img src="https://img.icons8.com/ios-filled/50/ffffff/instagram-new.png" alt="Instagram Logo"
+                  class="social-logo" />
+              </a>
+              <a href="https://x.com" class="social-icon" aria-label="X">
+                <img src="https://img.icons8.com/ios-filled/50/ffffff/x.png" class="social-logo" />
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>Skyline Coffee Shop - Where Every Sip Tells a Story</p>
+          <p>&copy; 2025 Skyline Coffee Shop. All rights reserved.</p>
+        </div>
+      </footer>
+    </div>
+  </div>
+</body>
+
+</html>
