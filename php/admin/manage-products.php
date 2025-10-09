@@ -264,31 +264,13 @@ try {
                     <h2>Product Management</h2>
                     <button class="btn" onclick="openAddModal()">Add New Product</button>
                 </div>
-                
-                <div class="controls-section">
-                    <div class="search-controls">
-                        <form method="GET" class="search-form">
-                            <input type="text" name="search" placeholder="Search products..." value="<?php echo htmlspecialchars($search); ?>">
-                            <select name="category">
-                                <option value="">All Categories</option>
-                                <?php foreach ($categories as $cat): ?>
-                                    <option value="<?php echo htmlspecialchars($cat); ?>" <?php echo $category_filter === $cat ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($cat); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                            <button type="submit" class="btn btn-small">Filter</button>
-                            <a href="manage-products.php" class="btn btn-secondary btn-small">Clear</a>
-                        </form>
-                    </div>
-                </div>
-                
+                    
                 <div class="products-grid">
                     <?php foreach ($products as $product): ?>
                         <div class="product-card">
                             <div class="product-image">
                                 <?php if (!empty($product['image'])): ?>
-                                    <img src="../../resources/<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
+                                    <img style="height: 200px;" src="../../resources/<?php echo htmlspecialchars($product['image']); ?>" alt="<?php echo htmlspecialchars($product['name']); ?>">
                                 <?php else: ?>
                                     <div class="no-image">No Image</div>
                                 <?php endif; ?>
@@ -304,17 +286,10 @@ try {
                         </div>
                     <?php endforeach; ?>
                 </div>
-                
-                <?php if (empty($products)): ?>
-                    <div class="no-products">
-                        <p>No products found. <a href="#" onclick="openAddModal()">Add your first product</a></p>
-                    </div>
-                <?php endif; ?>
             </section>
         </div>
     </div>
 
-     Add Product Modal 
     <div id="addModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('addModal')">&times;</span>
@@ -348,7 +323,6 @@ try {
         </div>
     </div>
 
-     Edit Product Modal 
     <div id="editModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('editModal')">&times;</span>
@@ -385,7 +359,6 @@ try {
         </div>
     </div>
 
-     Delete Confirmation Modal 
     <div id="deleteModal" class="modal">
         <div class="modal-content">
             <span class="close" onclick="closeModal('deleteModal')">&times;</span>

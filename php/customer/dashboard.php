@@ -134,10 +134,6 @@ $conn->close();
                             <div class="action-icon">👤</div>
                             <span>Edit Profile</span>
                         </a>
-                        <a href="order-history.php" class="action-btn">
-                            <div class="action-icon">📋</div>
-                            <span>Order History</span>
-                        </a>
                     </div>
                 </aside>
 
@@ -163,9 +159,6 @@ $conn->close();
                                     </div>
                                 </div>
                             <?php endforeach; ?>
-                        </div>
-                        <div class="view-all">
-                            <a href="order-history.php" class="btn">View All Orders</a>
                         </div>
                     <?php endif; ?>
                 </div>
