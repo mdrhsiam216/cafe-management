@@ -24,10 +24,13 @@ $result = $stmt->get_result();
 $cart_count = $result->fetch_assoc()['cart_count'] ?: 0;
 
 $stmt = $conn->prepare("
-    SELECT o.id, o.quantity, o.created_at, p.name as product_name, p.price,
-           o.status, p.image, o.payment_method
+    SELECT o.id, o.quantity, o.created_at, o.status, o.payment_method,
+        p.name as product_name, p.price, p.image,
+        s.title AS special_title, s.genuine_price AS special_genuine_price, s.discount AS special_discount,
+        o.is_special_offer
     FROM orders o 
-    JOIN products p ON o.productId = p.id 
+    LEFT JOIN products p ON o.productId = p.id 
+    LEFT JOIN special_offers s ON o.specialOfferId = s.id
     WHERE o.userId = ? 
     ORDER BY o.created_at DESC 
     LIMIT ? OFFSET ?
@@ -89,8 +92,13 @@ $conn->close();
                         <?php foreach ($orders as $order): ?>
                             <div class="order-item">
                                 <div class="order-info">
-                                    <h4>Order #<?php echo $order['id']; ?> - <?php echo htmlspecialchars($order['product_name']); ?></h4>
-                                    <p>Quantity: <?php echo $order['quantity']; ?> | Total: $<?php echo number_format($order['price'] * $order['quantity'], 2); ?></p>
+                                    <h4>Order #<?php echo $order['id']; ?> - <?php echo htmlspecialchars($order['is_special_offer'] ? ($order['special_title'] ?? 'Special Offer') : ($order['product_name'] ?? 'Product')); ?></h4>
+                                    <?php if ($order['is_special_offer']): ?>
+                                        <?php $price = isset($order['special_genuine_price']) && isset($order['special_discount']) ? ($order['special_genuine_price'] - ($order['special_genuine_price'] * $order['special_discount'] / 100)) : 0; ?>
+                                        <p>Quantity: <?php echo $order['quantity']; ?> | Total: $<?php echo number_format($price * $order['quantity'], 2); ?></p>
+                                    <?php else: ?>
+                                        <p>Quantity: <?php echo $order['quantity']; ?> | Total: $<?php echo number_format(($order['price'] ?? 0) * $order['quantity'], 2); ?></p>
+                                    <?php endif; ?>
                                     <small>Ordered on: <?php echo date('M j, Y g:i A', strtotime($order['created_at'])); ?></small>
                                 </div>
                                 <div class="order-status status-<?php echo $order['status']; ?>">

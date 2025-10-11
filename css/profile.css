@@ -58,7 +58,7 @@ body {
   font-size: 16px;
   font-weight: 500;
   padding: 10px 20px;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  
 }
 
 .nav-links a:hover {
@@ -138,7 +138,7 @@ p {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.3s ease;
+  
 }
 
 .btn:hover {
@@ -173,7 +173,7 @@ input {
   box-sizing: border-box;
   font-size: 16px;
   font-family: "Open Sans", sans-serif;
-  transition: border-color 0.3s ease;
+  
 }
 
 input:focus {
@@ -198,7 +198,7 @@ input[readonly] {
   text-decoration: none;
   font-size: 16px;
   font-family: "Open Sans", sans-serif;
-  transition: color 0.3s ease;
+  
 }
 
 .links a:hover {
@@ -256,7 +256,6 @@ input[readonly] {
 .social-icon {
   color: #fff;
   font-size: 28px;
-  transition: color 0.3s ease;
 }
 
 .social-icon:hover {
@@ -385,7 +384,6 @@ input[readonly] {
   width: 28px;
   height: 28px;
   object-fit: contain;
-  transition: transform 0.3s ease;
 }
 
 .social-icon:hover .social-logo {

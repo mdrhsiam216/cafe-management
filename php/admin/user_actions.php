@@ -52,19 +52,31 @@ switch ($action) {
     case 'get_user_orders':
         $userId = $_GET['userId'] ?? 0;
         
-        $stmt = $conn->prepare("
-            SELECT o.*, p.name as productName, p.price
-            FROM orders o 
-            LEFT JOIN products p ON o.productId = p.id
-            WHERE o.userId = ?
-            ORDER BY o.created_at DESC
-        ");
+            $stmt = $conn->prepare("
+                SELECT o.*, p.name as productName, p.price, s.title AS specialTitle, s.genuine_price AS special_genuine_price, s.discount AS special_discount, o.is_special_offer
+                FROM orders o 
+                LEFT JOIN products p ON o.productId = p.id
+                LEFT JOIN special_offers s ON o.specialOfferId = s.id
+                WHERE o.userId = ?
+                ORDER BY o.created_at DESC
+            ");
         $stmt->bind_param("i", $userId);
         
         $stmt->execute();
         $result = $stmt->get_result();
-        $orders = $result->fetch_all(MYSQLI_ASSOC);
-        sendSuccess($orders);
+            $orders = $result->fetch_all(MYSQLI_ASSOC);
+            // compute totals for special offers
+            foreach ($orders as &$order) {
+                if (!empty($order['is_special_offer'])) {
+                    $sp = isset($order['special_genuine_price']) ? (float)$order['special_genuine_price'] : 0.0;
+                    $sd = isset($order['special_discount']) ? (float)$order['special_discount'] : 0.0;
+                    $price = $sp - ($sp * $sd / 100);
+                    $order['total'] = $price * (int)$order['quantity'];
+                } else {
+                    $order['total'] = (float)$order['price'] * (int)$order['quantity'];
+                }
+            }
+            sendSuccess($orders);
         break;
 
     default:

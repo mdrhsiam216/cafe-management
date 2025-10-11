@@ -5,7 +5,6 @@
   font-size: 1.1rem;
   margin-bottom: 0;
   margin-top: 4px;
-  transition: background 0.2s, color 0.2s;
 }
 .update-profile-btn:hover {
   background: #a67c52;
@@ -53,7 +52,6 @@
   font-size: 28px;
   font-weight: bold;
   cursor: pointer;
-  transition: color 0.2s;
 }
 .close:hover {
   color: #6b4f2c;
@@ -76,7 +74,6 @@
   border-radius: 6px;
   font-size: 1rem;
   background: #fafafa;
-  transition: border 0.2s;
 }
 .password-form input[type="password"]:focus {
   border-color: #a67c52;
@@ -92,7 +89,6 @@
   border-radius: 6px;
   font-size: 1.1rem;
   cursor: pointer;
-  transition: background 0.2s;
   margin-top: 8px;
 }
 .confirm-btn:hover {
@@ -169,7 +165,7 @@ body {
   font-size: 16px;
   font-weight: 500;
   padding: 10px 20px;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  
 }
 
 .nav-links .logout-icon {
@@ -254,7 +250,7 @@ body {
 .social-icon {
   color: #fff;
   font-size: 28px;
-  transition: color 0.3s ease;
+  
 }
 
 .social-icon:hover {
@@ -368,7 +364,6 @@ body {
   border-radius: 6px;
   font-size: 1rem;
   background: #fafafa;
-  transition: border 0.2s;
 }
 
 .profile-form input:focus {
@@ -390,7 +385,6 @@ body {
   border-radius: 6px;
   font-size: 1.1rem;
   cursor: pointer;
-  transition: background 0.2s;
   margin-bottom: 8px;
 }
 
@@ -405,7 +399,6 @@ body {
   font-size: 1rem;
   margin-bottom: 0;
   margin-top: 4px;
-  transition: background 0.2s, color 0.2s;
 }
 .change-password-btn:hover {
   background: #a67c52;

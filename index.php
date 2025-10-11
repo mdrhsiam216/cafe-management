@@ -93,7 +93,7 @@
 										<span class="genuine-price">Original: <?php echo number_format($offer['genuine_price'], 2); ?></span>
 										<span class="discounted-price">Now: <?php echo number_format($offer['genuine_price'] - ($offer['genuine_price'] * $offer['discount'] / 100), 2); ?></span>
 									</p>
-									<form method="POST" action="php/customer/cart.php">
+									<form method="POST" action="php/customer/order_special.php" class="order-special-form">
 										<input type="hidden" name="offer_id" value="<?php echo $offer['id']; ?>">
 										<button type="submit" class="btn order-btn">Order Now</button>
 									</form>
@@ -193,5 +193,19 @@
 				</footer>
 			</div>
 		</div>
+	<script>
+	// Intercept special offer order forms to show a confirm dialog
+	document.addEventListener('DOMContentLoaded', function () {
+		document.querySelectorAll('.order-special-form').forEach(function(form) {
+			form.addEventListener('submit', function(e) {
+				var confirmed = confirm('Do you want to order this special offer now?');
+				if (!confirmed) {
+					e.preventDefault();
+				}
+			});
+		});
+	});
+
+</script>
 	</body>
 </html>

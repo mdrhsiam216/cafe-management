@@ -134,10 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <nav class="navbar">
       <ul class="nav-links">
         <li><a href="staff-orders.php">Order</a></li>
-        <li><a href="staff-payments.php">Payments</a></li>
         <li><a href="staff-active-orders.php">Active Orders</a></li>
-        <li><a href="#about-section">About</a></li>
-        <li><a href="#contact-section">Contact</a></li>
         <li><a href="staff-profile.php">Profile</a></li>
         <li><a href="../logout.php" class="logout-btn" onclick="return confirm('Are you sure you want to logout?');">Logout</a></li>
       </ul>
@@ -154,11 +151,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $processedMethod = isset($_GET['method']) ? rawurldecode($_GET['method']) : '';
     // First attempt: include payment_method (newer schema). If that fails (older DB), fall back to a query without it.
     $orders = [];
-    $ordersQueryWithMethod = "SELECT o.id, o.quantity, o.status, o.payment_method, o.created_at, p.name AS product_name, p.price, u.name AS customer_name
-            FROM orders o
-            LEFT JOIN products p ON o.productId = p.id
-            LEFT JOIN users u ON o.userId = u.id
-            ORDER BY o.created_at DESC LIMIT 30";
+    $ordersQueryWithMethod = "SELECT o.id, o.quantity, o.status, o.payment_method, o.created_at, p.name AS product_name, p.price, u.name AS customer_name, s.title AS special_title, s.genuine_price AS special_genuine_price, s.discount AS special_discount, o.is_special_offer
+      FROM orders o
+      LEFT JOIN products p ON o.productId = p.id
+      LEFT JOIN users u ON o.userId = u.id
+      LEFT JOIN special_offers s ON o.specialOfferId = s.id
+      ORDER BY o.created_at DESC LIMIT 30";
     $ordersRes = $conn->query($ordersQueryWithMethod);
     if ($ordersRes === false) {
       // fallback for databases that don't yet have payment_method column
@@ -197,9 +195,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
 
       echo '<div class="payment-cards-row">';
-      foreach ($orders as $ord) {
-        $oid = (int)$ord['id'];
-        $amount = number_format((float)$ord['price'] * (int)$ord['quantity'], 2);
+    foreach ($orders as $ord) {
+    $oid = (int)$ord['id'];
+    // compute amount: if special offer, calculate discounted price, else use product price
+    if (!empty($ord['is_special_offer'])) {
+      $sp_price = isset($ord['special_genuine_price']) && isset($ord['special_discount']) ? ($ord['special_genuine_price'] - ($ord['special_genuine_price'] * $ord['special_discount'] / 100)) : 0;
+      $amount = number_format((float)$sp_price * (int)$ord['quantity'], 2);
+    } else {
+      $amount = number_format((float)$ord['price'] * (int)$ord['quantity'], 2);
+    }
         $statusRaw = $ord['status'] ?? 'pending';
         $status = htmlspecialchars($statusRaw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $cust = htmlspecialchars($ord['customer_name'] ?? 'Guest', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');

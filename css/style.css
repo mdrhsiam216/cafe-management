@@ -58,7 +58,6 @@ body {
   font-size: 16px;
   font-weight: 500;
   padding: 10px 20px;
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .nav-links a:hover {
@@ -177,7 +176,6 @@ p {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
 .btn:hover {
@@ -215,7 +213,6 @@ p {
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
   position: relative;
   flex: 1;
   min-width: 250px;
@@ -388,7 +385,6 @@ p {
 .social-icon {
   color: #fff;
   font-size: 28px;
-  transition: color 0.3s ease;
 }
 
 .social-icon:hover {
@@ -536,7 +532,6 @@ p {
   width: 28px;
   height: 28px;
   object-fit: contain;
-  transition: transform 0.3s ease;
 }
 
 .social-icon:hover .social-logo {

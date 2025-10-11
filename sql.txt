@@ -1,3 +1,4 @@
+
 -- Users Table
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -8,13 +9,13 @@ CREATE TABLE users (
     role VARCHAR(50) NOT NULL DEFAULT 'customer'
 );
 
--- Staff Table
+-- Staff Table (links to a user)
 CREATE TABLE staff (
     id INT AUTO_INCREMENT PRIMARY KEY,
     userId INT NOT NULL,
     dutyFrom TIME NULL,
     dutyTo TIME NULL,
-    FOREIGN KEY (userId) REFERENCES users(id)
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Products Table
@@ -33,21 +34,35 @@ CREATE TABLE coupons (
     active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
+-- Special Offers Table
+CREATE TABLE special_offers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    image VARCHAR(255) NOT NULL,
+    genuine_price DECIMAL(10,2) NOT NULL,
+    discount DECIMAL(5,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Orders Table
 CREATE TABLE orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     staffId INT NULL,
     userId INT NULL,
-    productId INT NOT NULL,
-    quantity INT NOT NULL,
+    productId INT NULL,
+    quantity INT NOT NULL DEFAULT 1,
     couponId INT NULL,
     payment_method VARCHAR(50) NULL,
     status ENUM('pending', 'delivered') NOT NULL DEFAULT 'pending',
+    specialOfferId INT NULL,
+    is_special_offer BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (staffId) REFERENCES staff(id),
-    FOREIGN KEY (userId) REFERENCES users(id),
-    FOREIGN KEY (productId) REFERENCES products(id),
-    FOREIGN KEY (couponId) REFERENCES coupons(id)
+    FOREIGN KEY (staffId) REFERENCES staff(id) ON DELETE SET NULL,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (productId) REFERENCES products(id) ON DELETE SET NULL,
+    FOREIGN KEY (couponId) REFERENCES coupons(id) ON DELETE SET NULL,
+    FOREIGN KEY (specialOfferId) REFERENCES special_offers(id) ON DELETE SET NULL
 );
 
 -- Cart Table
@@ -57,6 +72,6 @@ CREATE TABLE cart (
     productId INT NOT NULL,
     quantity INT NOT NULL DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (userId) REFERENCES users(id),
-    FOREIGN KEY (productId) REFERENCES products(id)
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (productId) REFERENCES products(id) ON DELETE CASCADE
 );

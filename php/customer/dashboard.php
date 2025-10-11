@@ -20,10 +20,13 @@ $user = $result->fetch_assoc();
 
 // Get recent orders
 $stmt = $conn->prepare("
-    SELECT o.id, o.quantity, o.created_at, p.name as product_name, p.price,
-           COALESCE(o.status, 'pending') as status
+    SELECT o.id, o.quantity, o.created_at, COALESCE(o.status, 'pending') as status,
+        p.name as product_name, p.price,
+        s.title AS special_title, s.genuine_price AS special_genuine_price, s.discount AS special_discount,
+        o.is_special_offer
     FROM orders o 
-    JOIN products p ON o.productId = p.id 
+    LEFT JOIN products p ON o.productId = p.id 
+    LEFT JOIN special_offers s ON o.specialOfferId = s.id
     WHERE o.userId = ? 
     ORDER BY o.created_at DESC 
     LIMIT 5
@@ -50,12 +53,16 @@ $order_data = $result->fetch_assoc();
 $total_orders = $order_data['total_orders'];
 
 // Calculate total spent
-$stmt = $conn->prepare("
-    SELECT SUM(o.quantity * p.price) as total_spent 
-    FROM orders o 
-    JOIN products p ON o.productId = p.id 
-    WHERE o.userId = ?
-");
+    $stmt = $conn->prepare("
+        SELECT SUM(
+            CASE WHEN o.is_special_offer = 1 THEN (COALESCE(s.genuine_price,0) - (COALESCE(s.genuine_price,0) * COALESCE(s.discount,0) / 100)) * o.quantity
+                 ELSE COALESCE(p.price,0) * o.quantity END
+        ) as total_spent
+        FROM orders o
+        LEFT JOIN products p ON o.productId = p.id
+        LEFT JOIN special_offers s ON o.specialOfferId = s.id
+        WHERE o.userId = ?
+    ");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -149,8 +156,13 @@ $conn->close();
                                 <div class="order-item">
                                     <div class="order-details">
                                         <div class="order-info">
-                                            <h4><?php echo htmlspecialchars($order['product_name']); ?></h4>
-                                            <p>Quantity: <?php echo $order['quantity']; ?> | Total: $<?php echo number_format($order['price'] * $order['quantity'], 2); ?></p>
+                                            <h4><?php echo htmlspecialchars($order['is_special_offer'] ? ($order['special_title'] ?? 'Special Offer') : ($order['product_name'] ?? 'Product')); ?></h4>
+                                            <?php if ($order['is_special_offer']): ?>
+                                                <?php $price = isset($order['special_genuine_price']) && isset($order['special_discount']) ? ($order['special_genuine_price'] - ($order['special_genuine_price'] * $order['special_discount'] / 100)) : 0; ?>
+                                                <p>Quantity: <?php echo $order['quantity']; ?> | Total: $<?php echo number_format($price * $order['quantity'], 2); ?></p>
+                                            <?php else: ?>
+                                                <p>Quantity: <?php echo $order['quantity']; ?> | Total: $<?php echo number_format(($order['price'] ?? 0) * $order['quantity'], 2); ?></p>
+                                            <?php endif; ?>
                                             <small>Ordered on: <?php echo date('M j, Y g:i A', strtotime($order['created_at'])); ?></small>
                                         </div>
                                         <div class="order-status status-<?php echo strtolower($order['status']); ?>">

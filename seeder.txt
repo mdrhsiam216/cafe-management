@@ -24,11 +24,3 @@ INSERT INTO coupons (couponString, active) VALUES
 ('WELCOME5', TRUE),   -- $5 off new customers
 ('FREEMUFFIN', TRUE), -- Free muffin promo
 ('EXPIRED10', FALSE); -- Old inactive coupon
-
--- Orders (customers buying coffee/food)
-INSERT INTO orders (staffId, userId, productId, quantity, couponId) VALUES
-(1, 3, 1, 1, 1),  -- Alice buys an Espresso, barista assists, WELCOME5
-(1, 4, 2, 2, NULL), -- Bob buys 2 Cappuccinos, barista assists
-(NULL, 5, 4, 1, 2), -- Charlie orders Mocha online, applies FREEMUFFIN
-(NULL, 3, 5, 1, NULL), -- Alice orders a Croissant online, no coupon
-(1, 4, 6, 2, NULL); -- Bob buys 2 Muffins, barista-assisted, no coupon

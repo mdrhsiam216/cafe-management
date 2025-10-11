@@ -40,19 +40,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $conn = connect_db();
     $conn->begin_transaction();
     try {
-      $insert = $conn->prepare("INSERT INTO orders (userId, productId, quantity, status, payment_method) VALUES (?, ?, ?, 'pending', ?) ");
-      if (!$insert) throw new Exception('Prepare failed: ' . $conn->error);
-      // staff-created orders have no userId (NULL)
-      $nullUser = null;
-      foreach ($quantities as $pid => $qty) {
+    // Resolve staff.id from staff table using session user id (to satisfy FK)
+    $staffUserId = isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;
+    $staffIdToSave = null;
+    if ($staffUserId !== null) {
+      $tmp = $conn->prepare('SELECT id FROM staff WHERE userId = ? LIMIT 1');
+      if ($tmp) {
+        $tmp->bind_param('i', $staffUserId);
+        $tmp->execute();
+        $resTmp = $tmp->get_result();
+        $rowTmp = $resTmp ? $resTmp->fetch_assoc() : null;
+        if ($rowTmp) $staffIdToSave = (int)$rowTmp['id'];
+        $tmp->close();
+      }
+    }
+
+    foreach ($quantities as $pid => $qty) {
         if ($qty <= 0) continue;
         $paymentMethod = 'cash';
-        // bind: userId (i) as null -> use 'i' with NULL via bind_param requires workaround: use s and pass null string? We'll pass null using bind_param with 'isss' and set first param to null via null coalescing
-        // Simpler: set userId to NULL by using explicit NULL in query when binding is awkward
-        $sql = "INSERT INTO orders (userId, productId, quantity, status, payment_method) VALUES (NULL, ?, ?, 'pending', ?)";
-        $st = $conn->prepare($sql);
-        if (!$st) throw new Exception('Prepare failed: ' . $conn->error);
-        $st->bind_param('iis', $pid, $qty, $paymentMethod);
+
+    if ($staffIdToSave === null) {
+      // no staff mapping found: insert with NULL staffId
+      $sql = "INSERT INTO orders (staffId, productId, quantity, status, payment_method) VALUES (NULL, ?, ?, 'pending', ?)";
+      $st = $conn->prepare($sql);
+      if (!$st) throw new Exception('Prepare failed: ' . $conn->error);
+      $st->bind_param('iis', $pid, $qty, $paymentMethod);
+    } else {
+      // insert using resolved staff.id to satisfy FK
+      $sql = "INSERT INTO orders (staffId, productId, quantity, status, payment_method) VALUES (?, ?, ?, 'pending', ?)";
+      $st = $conn->prepare($sql);
+      if (!$st) throw new Exception('Prepare failed: ' . $conn->error);
+      $st->bind_param('iiis', $staffIdToSave, $pid, $qty, $paymentMethod);
+    }
+
         if (!$st->execute()) throw new Exception('Execute failed: ' . $st->error);
         $st->close();
       }
@@ -85,10 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <nav class="navbar">
       <ul class="nav-links">
         <li><a href="staff-orders.php">Order</a></li>
-        <li><a href="staff-payments.php">Payments</a></li>
         <li><a href="staff-active-orders.php">Active Orders</a></li>
-        <li><a href="#about-section">About</a></li>
-        <li><a href="#contact-section">Contact</a></li>
         <li><a href="staff-profile.php">Profile</a></li>
         <li><a href="../logout.php" class="logout-btn" onclick="return confirm('Are you sure you want to logout?');">Logout</a></li>
       </ul>
@@ -161,52 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <?php endif; ?>
 
       
-      <footer class="footer">
-        <div class="footer-content">
-          <div class="footer-section" id="contact-section">
-            <h3>Contact Us</h3>
-            <p>
-              Email:
-              <a href="mailto:info@skylinecoffee.com">info@skylinecoffee.com</a>
-            </p>
-            <p>Phone: <a href="tel:+8801234567890">+880 123 456 7890</a></p>
-            <p>Address: 123 Skyline Avenue, Dhaka</p>
-          </div>
-          <div class="footer-section" id="about-section">
-            <h3>About Us</h3>
-            <p>
-              We are passionate about serving the finest coffee, crafted with
-              love and expertise. Join us for a unique coffee experience!
-            </p>
-          </div>
-          <div class="footer-section">
-            <h3>Newsletter</h3>
-            <p>Subscribe for exclusive offers!</p>
-            <input type="email" placeholder="Enter your email" class="newsletter-input" />
-            <button class="btn newsletter-btn">Subscribe</button>
-          </div>
-          <div class="footer-section">
-            <h3>Follow Us</h3>
-            <div class="social-links">
-              <a href="https://facebook.com" class="social-icon" aria-label="Facebook">
-                <img src="https://img.icons8.com/ios-filled/50/ffffff/facebook-new.png" alt="Facebook Logo"
-                  class="social-logo" />
-              </a>
-              <a href="https://instagram.com" class="social-icon" aria-label="Instagram">
-                <img src="https://img.icons8.com/ios-filled/50/ffffff/instagram-new.png" alt="Instagram Logo"
-                  class="social-logo" />
-              </a>
-              <a href="https://x.com" class="social-icon" aria-label="X">
-                <img src="https://img.icons8.com/ios-filled/50/ffffff/x.png" class="social-logo" />
-              </a>
-            </div>
-          </div>
-        </div>
-        <div class="footer-bottom">
-          <p>Skyline Coffee Shop - Where Every Sip Tells a Story</p>
-          <p>&copy; 2025 Skyline Coffee Shop. All rights reserved.</p>
-        </div>
-      </footer>
+      
     </div>
   </div>
 </body>

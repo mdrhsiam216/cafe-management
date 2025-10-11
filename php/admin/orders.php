@@ -3,10 +3,11 @@ require_once 'admin_functions.php';
 validateAdminAccess();
 
 $conn = connect_db();
-$query = "SELECT o.*, u.name as userName, p.name as productName, p.price 
+$query = "SELECT o.*, u.name as userName, p.name as productName, p.price, s.title as specialTitle, o.is_special_offer
           FROM orders o 
           LEFT JOIN users u ON o.userId = u.id 
           LEFT JOIN products p ON o.productId = p.id
+          LEFT JOIN special_offers s ON o.specialOfferId = s.id
           ORDER BY o.created_at DESC";
 $result = $conn->query($query);
 $orders = $result->fetch_all(MYSQLI_ASSOC);
@@ -74,7 +75,7 @@ $conn->close();
                                 <td><?php echo $order['id']; ?></td>
                                 <td><?php echo $order['staffId'] ?? 'N/A'; ?></td>
                                 <td><?php echo $order['userId']; ?></td>
-                                <td><?php echo $order['productId']; ?></td>
+                                <td><?php echo $order['is_special_offer'] ? ($order['specialTitle'] ?? 'Special Offer') : ($order['productId'] ? htmlspecialchars($order['productName']) : 'N/A'); ?></td>
                                 <td><?php echo $order['quantity']; ?></td>
                                 <td>
                                     <span class="status-badge status-<?php echo $order['status']; ?>">

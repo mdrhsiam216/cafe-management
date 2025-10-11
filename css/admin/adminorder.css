@@ -59,7 +59,7 @@ body {
   font-size: 16px;
   font-weight: 500;
   padding: 10px 20px;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  
 }
 
 .nav-links a:hover {
@@ -77,7 +77,7 @@ body {
   cursor: pointer;
   padding: 10px;
   border-radius: 8px;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  
   margin-left: 1130px;
 }
 
@@ -136,7 +136,7 @@ body {
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
+  
 }
 
 .middletotal {
@@ -232,7 +232,7 @@ input {
   border-radius: 6px;
   box-sizing: border-box;
   font-size: 18px;
-  transition: border-color 0.3s ease;
+  
 }
 
 input:focus {
@@ -251,7 +251,7 @@ input:focus {
   cursor: pointer;
   margin-left: 25%;
   margin-top: 15px;
-  transition: background-color 0.3s ease, transform 0.2s ease;
+  
 }
 
 .btn button:active {
@@ -325,7 +325,6 @@ input:focus {
   width: 28px;
   height: 28px;
   object-fit: contain;
-  transition: transform 0.3s ease;
 }
 
 .social-icon:hover .social-logo {

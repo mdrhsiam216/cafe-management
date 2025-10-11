@@ -72,7 +72,7 @@ td {
   font-size: 16px;
   font-weight: 500;
   padding: 10px 20px;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  
 }
 
 .nav-links a:hover {
@@ -101,11 +101,10 @@ td {
   text-align: center;
   width: 100%;
   max-width: 1000px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  
 }
 
 .orders-box:hover {
-  transform: scale(1.02);
   box-shadow: 0 0 25px rgba(0, 0, 0, 0.4);
 }
 
@@ -197,12 +196,11 @@ td {
   color: white;
   font-size: 16px;
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.3s ease;
+  
 }
 
 .btn:hover {
   background-color: #4cae4c;
-  transform: scale(1.05);
 }
 
 .links {
@@ -271,7 +269,7 @@ td {
 .social-icon {
   color: #fff;
   font-size: 28px;
-  transition: color 0.3s ease;
+  
 }
 
 .social-icon:hover {

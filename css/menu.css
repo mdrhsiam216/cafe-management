@@ -58,7 +58,7 @@ body {
   font-size: 16px;
   font-weight: 500;
   padding: 10px 20px;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  
 }
 
 .nav-links a:hover {
@@ -145,7 +145,7 @@ p {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.3s ease;
+  
 }
 
 .btn:hover {
@@ -244,7 +244,6 @@ td {
 .social-icon {
   color: #fff;
   font-size: 28px;
-  transition: color 0.3s ease;
 }
 
 .social-icon:hover {
@@ -379,10 +378,10 @@ td {
 }
 
 .social-logo {
+.social-logo {
   width: 28px;
   height: 28px;
   object-fit: contain;
-  transition: transform 0.3s ease;
 }
 
 .social-icon:hover .social-logo {
@@ -394,4 +393,5 @@ td {
     width: 24px;
     height: 24px;
   }
+}
 }

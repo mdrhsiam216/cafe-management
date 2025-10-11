@@ -171,10 +171,7 @@ $conn->close();
         <nav class="navbar">
             <ul class="nav-links">
                 <li><a href="staff-orders.php">Order</a></li>
-                <li><a href="staff-payments.php">Payments</a></li>
                 <li><a href="staff-active-orders.php">Active Orders</a></li>
-                <li><a href="#about-section">About</a></li>
-                <li><a href="#contact-section">Contact</a></li>
                 <li><a href="staff-profile.php">Profile</a></li>
                 <li><a href="../logout.php" class="logout-btn" onclick="return confirm('Are you sure you want to logout?');">Logout</a></li>
             </ul>
@@ -201,10 +198,6 @@ $conn->close();
                     <div class="form-group">
                         <label for="dutyTo">Duty To:</label>
                         <input type="time" id="dutyTo" name="dutyTo" value="<?php echo htmlspecialchars($staff['dutyTo'] ?? '', ENT_QUOTES); ?>">
-                    </div>
-                    <div class="form-group">
-                        <label for="role">Role:</label>
-                        <input type="text" id="role" name="role" value="<?php echo htmlspecialchars($_SESSION['user_role'] ?? 'staff', ENT_QUOTES); ?>" readonly>
                     </div>
                             <div class="form-group">
                                 <button type="button" class="change-password-btn" id="openPasswordModal">Change Password</button>
@@ -243,50 +236,6 @@ $conn->close();
                 </div>
             </div>
         </div>
-        <footer class="footer">
-            <div class="footer-content">
-                <div class="footer-section" id="contact-section">
-                    <h3>Contact Us</h3>
-                    <p>
-                        Email:
-                        <a href="mailto:info@skylinecoffee.com">info@skylinecoffee.com</a>
-                    </p>
-                    <p>Phone: <a href="tel:+8801234567890">+880 123 456 7890</a></p>
-                    <p>Address: 123 Skyline Avenue, Dhaka</p>
-                </div>
-                <div class="footer-section" id="about-section">
-                    <h3>About Us</h3>
-                    <p>
-                        We are passionate about serving the finest coffee, crafted with
-                        love and expertise. Join us for a unique coffee experience!
-                    </p>
-                </div>
-                <div class="footer-section">
-                    <h3>Newsletter</h3>
-                    <p>Subscribe for exclusive offers!</p>
-                    <input type="email" placeholder="Enter your email" class="newsletter-input" />
-                    <button class="btn newsletter-btn">Subscribe</button>
-                </div>
-                <div class="footer-section">
-                    <h3>Follow Us</h3>
-                    <div class="social-links">
-                        <a href="https://facebook.com" class="social-icon" aria-label="Facebook">
-                            <img src="https://img.icons8.com/ios-filled/50/ffffff/facebook-new.png" alt="Facebook Logo" class="social-logo" />
-                        </a>
-                        <a href="https://instagram.com" class="social-icon" aria-label="Instagram">
-                            <img src="https://img.icons8.com/ios-filled/50/ffffff/instagram-new.png" alt="Instagram Logo" class="social-logo" />
-                        </a>
-                        <a href="https://x.com" class="social-icon" aria-label="X">
-                            <img src="https://img.icons8.com/ios-filled/50/ffffff/x.png" class="social-logo" />
-                        </a>
-                    </div>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>Skyline Coffee Shop - Where Every Sip Tells a Story</p>
-                <p>&copy; 2025 Skyline Coffee Shop. All rights reserved.</p>
-            </div>
-        </footer>
         </div>
         <script>
             // Modal open/close logic

@@ -29,10 +29,11 @@ switch ($action) {
     case 'get_orders':
         $status = $_GET['status'] ?? '';
         $query = "
-            SELECT o.*, u.name as userName, p.name as productName, p.price 
+            SELECT o.*, u.name as userName, p.name as productName, p.price, s.title as specialTitle, s.genuine_price AS special_genuine_price, s.discount AS special_discount, o.is_special_offer
             FROM orders o 
             LEFT JOIN users u ON o.userId = u.id 
             LEFT JOIN products p ON o.productId = p.id
+            LEFT JOIN special_offers s ON o.specialOfferId = s.id
         ";
         
         if ($status) {
@@ -49,7 +50,14 @@ switch ($action) {
         
         // Calculate total amount for each order
         foreach ($orders as &$order) {
-            $order['total'] = $order['price'] * $order['quantity'];
+            if (!empty($order['is_special_offer'])) {
+                $sp = isset($order['special_genuine_price']) ? (float)$order['special_genuine_price'] : 0.0;
+                $sd = isset($order['special_discount']) ? (float)$order['special_discount'] : 0.0;
+                $price = $sp - ($sp * $sd / 100);
+                $order['total'] = $price * (int)$order['quantity'];
+            } else {
+                $order['total'] = (float)$order['price'] * (int)$order['quantity'];
+            }
             // Add coupon discount logic here if needed
         }
 

@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../rdb.php';
 $c = connect_db();
-$q = "SELECT o.id,o.quantity,o.status,p.name AS product_name,u.name AS customer_name FROM orders o LEFT JOIN products p ON o.productId=p.id LEFT JOIN users u ON o.userId=u.id ORDER BY o.created_at DESC";
+$q = "SELECT o.id,o.quantity,o.status,p.name AS product_name,u.name AS customer_name, s.title AS special_title, o.is_special_offer FROM orders o LEFT JOIN products p ON o.productId=p.id LEFT JOIN users u ON o.userId=u.id LEFT JOIN special_offers s ON o.specialOfferId = s.id ORDER BY o.created_at DESC";
 $res = $c->query($q);
 if (!$res) {
     echo 'Query error: ' . $c->error . PHP_EOL;
