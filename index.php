@@ -4,102 +4,102 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>Cafe Menu - Skyline Coffee Shop</title>
-		<link rel="stylesheet" href="css/menu.css" />
+	<link rel="stylesheet" href="css/style.css" />
 		<link
 			href="https://fonts.googleapis.com/css2?family=Lora:wght@400;700&family=Open+Sans:wght@400;600&display=swap"
 			rel="stylesheet"
 		/>
 	</head>
 	<body>
+		<?php
+		// Show different header actions depending on login state
+		session_start();
+		$isLoggedIn = isset($_SESSION['user_id']);
+		?>
 		<div class="container">
 			<nav class="navbar">
 				<ul class="nav-links">
 					<li><a href="index.php">Home</a></li>
-					<li><a href="php/menu.php">Menu</a></li>
+					<li><a href="../cafe-management/php/customer/menu.php">Menu</a></li>
 					<li><a href="#about-section">About</a></li>
 					<li><a href="#contact-section">Contact</a></li>
 					<li><a href="php/customer/profile.php">Profile</a></li>
+					<li><a href="php/customer/cart.php">Cart</a></li>
+					<?php if ($isLoggedIn): ?>
+						<li ><a href="php/logout.php" class="logout-btn" onclick="return confirm('Are you sure you want to logout?');">Logout</a></li>
+						
+					<?php endif; ?>
 				</ul>
 			</nav>
 			<div class="welcome-box">
 				<div class="hero-section">
 					<img
-						src="resources/Brown Modern Circle Coffee Shop Logo.png"
+						src="./resources/Brown Modern Circle Coffee Shop Logo.png"
 						alt="Cafe Logo"
 						class="logo"
 					/>
 					<h1>Welcome to Skyline Coffee Shop</h1>
 					<p>Discover amazing coffee experiences and exclusive offers!</p>
 					<div class="action-buttons">
-						<a href="php/login.php"
-							><button class="btn">Login</button></a
-						>
-						<a href="php/menu.php"
-							><button class="btn">View Menu</button></a
-						>
+						<?php if ($isLoggedIn): ?>
+							<a href="php/menu.php"><button class="btn">View Menu</button></a>
+						<?php else: ?>
+							<a href="php/login.php"><button class="btn">Login</button></a>
+							<a href="php/menu.php"><button class="btn">View Menu</button></a>
+						<?php endif; ?>
 					</div>
 				</div>
+				<?php
+				// Fetch special offers dynamically
+				require_once 'db/db_connection.php';
+
+				$special_offers = [];
+				$query = "SELECT * FROM special_offers";
+				if ($result = $conn->query($query)) {
+					while ($row = $result->fetch_assoc()) {
+						$special_offers[] = $row;
+					}
+					$result->free();
+				} else {
+					die('Error: ' . $conn->error);
+				}
+				?>
+
+				<?php
+				// Debugging: Log form submission
+				if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+					file_put_contents('debug_log.txt', print_r($_POST, true), FILE_APPEND);
+				}
+				?>
 				<section class="offers-section">
 					<h2>Special Offers</h2>
 					<div class="offer-grid">
-						<div class="offer-card">
-							<div class="offer-badge">20% OFF</div>
-							<img
-								src="resources/coffee.png"
-								alt="Premium Coffee"
-								class="offer-img"
-							/>
-							<h3>Premium Coffee Blend</h3>
-							<p class="offer-description">
-								Rich, aromatic espresso blend crafted from the finest beans
-							</p>
-							<div class="price-section">
-								<span class="original-price">৳180</span>
-								<span class="discounted-price">৳144</span>
-							</div>
-							<a href="php/menu.php"
-								><button class="btn order-btn">Order Now</button></a
-							>
-						</div>
-						<div class="offer-card">
-							<div class="offer-badge">Buy 2 Get 1</div>
-							<img
-								src="resources/Latte.png"
-								alt="Signature Latte"
-								class="offer-img"
-							/>
-							<h3>Signature Latte</h3>
-							<p class="offer-description">
-								Creamy espresso with perfectly steamed milk and beautiful latte
-								art
-							</p>
-							<div class="price-section">
-								<span class="offer-text">3 for ৳500</span>
-							</div>
-							<a href="php/menu.php"
-								><button class="btn order-btn">Order Now</button></a
-							>
-						</div>
-						<div class="offer-card">
-							<div class="offer-badge">15% OFF</div>
-							<img
-								src="resources/Croissant.png"
-								alt="Fresh Croissants"
-								class="offer-img"
-							/>
-							<h3>Fresh Croissants</h3>
-							<p class="offer-description">
-								Freshly baked, buttery croissants perfect with your morning
-								coffee
-							</p>
-							<div class="price-section">
-								<span class="original-price">৳220</span>
-								<span class="discounted-price">৳187</span>
-							</div>
-							<a href="php/menu.php"
-								><button class="btn order-btn">Order Now</button></a
-							>
-						</div>
+						<?php if (empty($special_offers)): ?>
+							<p>No special offers available at the moment.</p>
+						<?php else: ?>
+							<?php foreach ($special_offers as $offer): ?>
+								<div class="offer-card">
+									<div class="offer-badge">- <?php echo number_format($offer['discount'], 2); ?>%</div>
+									<img
+										src="<?php echo $offer['image']; ?>"
+										alt="<?php echo $offer['title']; ?>"
+										class="offer-img"
+									/>
+									<h3><?php echo $offer['title']; ?></h3>
+									<p class="offer-description">
+										<?php echo $offer['description']; ?>
+									</p>
+									<p class="offer-pricing">
+										<span class="genuine-price">Original: <?php echo number_format($offer['genuine_price'], 2); ?></span>
+										<span class="discounted-price">Now: <?php echo number_format($offer['genuine_price'] - ($offer['genuine_price'] * $offer['discount'] / 100), 2); ?></span>
+									</p>
+									<form method="POST" action="php/customer/cart.php">
+										<input type="hidden" name="offer_id" value="<?php echo $offer['id']; ?>">
+										<button type="submit" class="btn order-btn">Order Now</button>
+									</form>
+								</div>
+							<?php endforeach; ?>
+						<?php endif; ?>
 					</div>
 				</section>
 				<section class="features-section">

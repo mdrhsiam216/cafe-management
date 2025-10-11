@@ -42,24 +42,40 @@ function validateAdminAccess() {
     if (session_status() === PHP_SESSION_NONE) {
         session_start();
     }
-    
-    // Check for session hijacking
-    if (!isset($_SESSION['last_ip']) || $_SESSION['last_ip'] !== $_SERVER['REMOTE_ADDR']) {
+
+    // Normalize IP addresses for comparison
+    $session_ip = ($_SESSION['last_ip'] === '::1') ? '127.0.0.1' : $_SESSION['last_ip'];
+    $current_ip = ($_SERVER['REMOTE_ADDR'] === '::1') ? '127.0.0.1' : $_SERVER['REMOTE_ADDR'];
+
+    if (!isset($_SESSION['last_ip']) || $session_ip !== $current_ip) {
         session_unset();
         session_destroy();
         header('Location: ../login.php?error=security');
         exit();
     }
-    
-    // Check admin role
+
     if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
         header('Location: ../login.php');
         exit();
     }
-    
+
     // Regenerate session ID periodically
     if (!isset($_SESSION['last_regenerated']) || (time() - $_SESSION['last_regenerated']) > 1800) {
         session_regenerate_id(true);
         $_SESSION['last_regenerated'] = time();
+    }
+}
+
+function addSpecialOfferAsProduct($name, $price, $image = null) {
+    global $conn; // Assuming $conn is the database connection
+
+    $stmt = $conn->prepare("INSERT INTO products (name, price, image) VALUES (?, ?, ?)");
+    $stmt->bind_param("sds", $name, $price, $image);
+
+    if ($stmt->execute()) {
+        return $conn->insert_id; // Return the ID of the inserted product
+    } else {
+        error_log("Error adding special offer as product: " . $stmt->error);
+        return false;
     }
 }

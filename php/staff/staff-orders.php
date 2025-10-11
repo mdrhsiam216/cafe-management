@@ -35,8 +35,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   } elseif ($totalItems < $minItems) {
     $orderMsg = 'Please order at least ' . $minItems . ' item' . ($minItems > 1 ? 's' : '') . '.';
   } else {
-    // Process the order here (demo)
-    $orderMsg = 'Order submitted (demo). Total items: ' . $totalItems . '.';
+    // Persist order into orders table
+    require_once '../rdb.php';
+    $conn = connect_db();
+    $conn->begin_transaction();
+    try {
+      $insert = $conn->prepare("INSERT INTO orders (userId, productId, quantity, status, payment_method) VALUES (?, ?, ?, 'pending', ?) ");
+      if (!$insert) throw new Exception('Prepare failed: ' . $conn->error);
+      // staff-created orders have no userId (NULL)
+      $nullUser = null;
+      foreach ($quantities as $pid => $qty) {
+        if ($qty <= 0) continue;
+        $paymentMethod = 'cash';
+        // bind: userId (i) as null -> use 'i' with NULL via bind_param requires workaround: use s and pass null string? We'll pass null using bind_param with 'isss' and set first param to null via null coalescing
+        // Simpler: set userId to NULL by using explicit NULL in query when binding is awkward
+        $sql = "INSERT INTO orders (userId, productId, quantity, status, payment_method) VALUES (NULL, ?, ?, 'pending', ?)";
+        $st = $conn->prepare($sql);
+        if (!$st) throw new Exception('Prepare failed: ' . $conn->error);
+        $st->bind_param('iis', $pid, $qty, $paymentMethod);
+        if (!$st->execute()) throw new Exception('Execute failed: ' . $st->error);
+        $st->close();
+      }
+      $conn->commit();
+      $conn->close();
+      header('Location: staff-active-orders.php');
+      exit();
+    } catch (Exception $e) {
+      $conn->rollback();
+      $orderMsg = 'Failed to place order: ' . $e->getMessage();
+      $conn->close();
+    }
   }
 }
 ?>
@@ -49,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Take Orders - Skyline Coffee Shop</title>
   <link rel="stylesheet" href="../../css/staff/staff-orders.css" />
+  <link rel="stylesheet" href="../../css/staff/staff-common.css" />
 </head>
 
 <body>
@@ -61,20 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <li><a href="#about-section">About</a></li>
         <li><a href="#contact-section">Contact</a></li>
         <li><a href="staff-profile.php">Profile</a></li>
-        <li>
-          <a href="../logout.php" class="logout-icon" title="Log out" aria-label="Log out" onclick="return confirm('Are you sure you want to logout?');">
-            <!-- simple logout SVG icon -->
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true">
-              <path d="M16 17L21 12L16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path d="M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path d="M13 19H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h7" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </a>
-        </li>
+        <li><a href="../logout.php" class="logout-btn" onclick="return confirm('Are you sure you want to logout?');">Logout</a></li>
       </ul>
     </nav>
     <div class="orders-box">
@@ -87,7 +103,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <table id="menu-table">
           <thead>
             <tr>
-              <th>Photo</th>
               <th>Item</th>
               <th>Description</th>
               <th>Price (BDT)</th>
@@ -95,62 +110,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>
-                <img src="../../resources/coffee.png" alt="Coffee" class="menu-img" />
-              </td>
-              <td>Coffee</td>
-              <td>Rich, aromatic espresso blend</td>
-              <td>180</td>
-                  <td>
-                <div class="form-group">
-                  <label for="quantity">Quantity</label>
-                  <input type="number" id="quantity_1" name="quantity_1" min="0" value="0" />
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <img src="../../resources/Tea.png" alt="Tea" class="menu-img" />
-              </td>
-              <td>Tea</td>
-              <td>Classic milk tea</td>
-              <td>120</td>
-                  <td>
-                <div class="form-group">
-                  <label for="quantity">Quantity</label>
-                  <input type="number" id="quantity_2" name="quantity_2" min="0" value="0" />
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <img src="../../resources/Latte.png" alt="Latte" class="menu-img" />
-              </td>
-              <td>Latte</td>
-              <td>Creamy espresso with steamed milk</td>
-              <td>250</td>
-                  <td>
-                <div class="form-group">
-                  <label for="quantity">Quantity</label>
-                  <input type="number" id="quantity_3" name="quantity_3" min="0" value="0" />
-                </div>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <img src="../../resources/Croissant.png" alt="Croissant" class="menu-img" />
-              </td>
-              <td>Croissant</td>
-              <td>Freshly baked croissants</td>
-              <td>220</td>
-                  <td>
-                <div class="form-group">
-                  <label for="quantity">Quantity</label>
-                  <input type="number" id="quantity_4" name="quantity_4" min="0" value="0" />
-                </div>
-              </td>
-            </tr>
+            <?php
+            // Fetch products from DB and render rows
+            require_once '../rdb.php';
+            $conn = connect_db();
+            $products = [];
+            $res = $conn->query("SELECT id, name, price, image FROM products ORDER BY id ASC");
+            if ($res) {
+                while ($row = $res->fetch_assoc()) {
+                    $products[] = $row;
+                }
+            }
+
+      if (empty($products)) {
+        echo '<tr><td colspan="4">No products available.</td></tr>';
+      } else {
+        foreach ($products as $p) {
+          $pid = (int)$p['id'];
+          $pname = htmlspecialchars($p['name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+          $price = htmlspecialchars($p['price'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+          $imageRel = $p['image'] ? $p['image'] : null; // stored like 'uploads/products/xxx.jpg'
+          // Build path under resources. Check server-side if file exists; if not, use a fallback image.
+          $candidate = $imageRel ? __DIR__ . '/../../resources/' . $imageRel : null;
+          if ($candidate && file_exists($candidate)) {
+            $imgUrl = '../../resources/' . $imageRel;
+          } else {
+            // fallback product image
+            $imgUrl = '../../resources/coffee.png';
+          }
+          $escapedImg = htmlspecialchars($imgUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+          echo "<tr>";
+          echo "<td>$pname</td>";
+          echo "<td>&nbsp;</td>"; // description column left empty for now
+          echo "<td>$price</td>";
+          echo "<td>\n<div class=\"form-group\">\n<label for=\"quantity_$pid\">Quantity</label>\n";
+          echo "<input type=\"number\" id=\"quantity_$pid\" name=\"quantity_$pid\" min=\"0\" value=\"0\" />\n</div>\n</td>";
+          echo "</tr>";
+        }
+            }
+            $conn->close();
+            ?>
           </tbody>
         </table>
       </div>

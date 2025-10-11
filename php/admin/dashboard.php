@@ -23,6 +23,7 @@ $conn->close();
                 <li><a href="manage-employees.php">Manage Employees</a></li>
                 <li><a href="orders.php">Orders</a></li>
                 <li><a href="manage-users.php">Manage Users</a></li>
+                <li><a href="adminprofile.php">Profile</a></li>
                 <li><a href="manage-products.php">Manage Products</a></li>
                 <li><a href="manage-coupons.php">Manage Coupons</a></li>
                 <li><a href="logout.php" class="logout-btn">Logout</a></li>
@@ -31,7 +32,7 @@ $conn->close();
         
         <div class="welcome-box">
             <div class="hero-section">
-                <img src="../resources/Brown Modern Circle Coffee Shop Logo.png" alt="Cafe Logo" class="logo">
+                <img src="../../resources/Brown Modern Circle Coffee Shop Logo.png" alt="Cafe Logo" class="logo">
                 <h1>Admin Dashboard</h1>
                 <p>Welcome back, <?php echo htmlspecialchars($_SESSION['user_name']); ?>!</p>
             </div>
@@ -73,6 +74,7 @@ $conn->close();
                         <a href="manage-users.php" class="btn">Manage Users</a>
                         <a href="manage-products.php" class="btn">Manage Products</a>
                         <a href="manage-coupons.php" class="btn">Manage Coupons</a>
+                        <a href="manage-special-offers.php" class="btn">Manage Special Offers</a>
                     </div>
                 </div>
             </section>

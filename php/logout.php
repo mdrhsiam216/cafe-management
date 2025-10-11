@@ -1,6 +1,7 @@
 <?php
 session_start();
 session_destroy();
-header("Location: /diganto-cafe/php/login.php");
+header("Location: /cafe-management/php/login.php");
+
 exit();
 ?>

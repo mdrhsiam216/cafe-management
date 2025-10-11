@@ -41,6 +41,7 @@ CREATE TABLE orders (
     productId INT NOT NULL,
     quantity INT NOT NULL,
     couponId INT NULL,
+    payment_method VARCHAR(50) NULL,
     status ENUM('pending', 'delivered') NOT NULL DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (staffId) REFERENCES staff(id),

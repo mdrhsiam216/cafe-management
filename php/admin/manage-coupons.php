@@ -25,6 +25,7 @@ $conn->close();
                 <li><a href="manage-employees.php">Manage Employees</a></li>
                 <li><a href="orders.php">Orders</a></li>
                 <li><a href="manage-users.php">Manage Users</a></li>
+                <li><a href="adminprofile.php">Profile</a></li>
                 <li><a href="manage-coupons.php" class="active">Manage Coupons</a></li>
                 <li><a href="logout.php" class="logout-btn">Logout</a></li>
             </ul>
@@ -32,7 +33,7 @@ $conn->close();
         
         <div class="welcome-box">
             <div class="hero-section">
-                <img src="../resources/Brown Modern Circle Coffee Shop Logo.png" alt="Cafe Logo" class="logo">
+                <img src="../../resources/Brown Modern Circle Coffee Shop Logo.png" alt="Cafe Logo" class="logo">
                 <h1>Manage Coupons</h1>
                 <p>Create and manage discount coupons</p>
             </div>

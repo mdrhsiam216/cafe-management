@@ -121,7 +121,7 @@ $conn->close();
 
         <div class="profile-box">
             <div class="hero-section">
-                <img src="../resources/Brown Modern Circle Coffee Shop Logo.png" alt="Cafe Logo" class="logo">
+                <img src="../../resources/Brown Modern Circle Coffee Shop Logo.png" alt="Cafe Logo" class="logo">
                 <h1>My Profile</h1>
                 <p>Manage your account information and preferences</p>
             </div>

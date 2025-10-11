@@ -79,7 +79,7 @@ $conn->close();
     <div class="container">
         <nav class="navbar">
             <ul class="nav-links">
-                <li><a href="dashboard.php">Home</a></li>
+                <li><a href="../../index.php">Home</a></li>
                 <li><a href="menu.php">Menu</a></li>
                 <li><a href="cart.php">Cart (<?php echo $cart_count; ?>)</a></li>
                 <li><a href="profile.php">Profile</a></li>

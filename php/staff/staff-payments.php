@@ -1,9 +1,28 @@
 <?php
-// Demo server-side validation for payment processing actions
-session_start();
+// Staff payments processing (persist to orders)
+require_once '../auth_middleware.php';
+requireRole(['staff']);
+require_once '../rdb.php';
 $paymentMsg = '';
 $lastOrderId = '';
 $lastMethod = '';
+$processedOrderId = 0;
+$processedMethod = '';
+
+// helper to get staff id
+function get_staff_id_for_session_payment($conn) {
+    $uid = $_SESSION['user_id'] ?? null;
+    if (!$uid) return null;
+    $st = $conn->prepare('SELECT id FROM staff WHERE userId = ? LIMIT 1');
+    if (!$st) return null;
+    $st->bind_param('i', $uid);
+    $st->execute();
+    $res = $st->get_result();
+    $row = $res ? $res->fetch_assoc() : null;
+    $st->close();
+    return $row ? (int)$row['id'] : null;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $orderId = isset($_POST['order_id']) ? trim($_POST['order_id']) : '';
   $method = isset($_POST['method']) ? trim($_POST['method']) : '';
@@ -15,7 +34,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   } elseif ($lastMethod === '' || !in_array($lastMethod, ['cash', 'bkash', 'card'], true)) {
     $paymentMsg = 'Please select a payment method (Cash, Bkash or Card).';
   } else {
-    $paymentMsg = "Payment for order #" . htmlspecialchars($orderId, ENT_QUOTES) . " processed (demo).";
+  $conn = connect_db();
+  $staffId = get_staff_id_for_session_payment($conn);
+  $orderIdInt = (int)$orderId;
+  $methodToSave = $lastMethod !== '' ? $lastMethod : null;
+
+  // Update order: set status to 'delivered', record staffId and payment_method
+    // Update order: set status to 'delivered'. If the DB has payment_method column, update it too.
+    $statusToSet = 'delivered';
+    $methodToSave = $methodToSave !== null ? $methodToSave : null;
+
+    // detect whether payment_method column exists
+    $hasPaymentMethod = false;
+    $colCheck = $conn->query("SHOW COLUMNS FROM orders LIKE 'payment_method'");
+    if ($colCheck && $colCheck->num_rows > 0) {
+      $hasPaymentMethod = true;
+    } else {
+      // Try to add the column automatically (best-effort). This helps testers who haven't migrated the DB.
+      $addRes = $conn->query("ALTER TABLE orders ADD COLUMN payment_method VARCHAR(50) NULL AFTER couponId");
+      if ($addRes !== false) {
+        $hasPaymentMethod = true;
+      } else {
+        // record an error for debugging but continue (we will do an update without payment_method)
+        if (isset($_GET['debug']) && $_GET['debug'] === '1') {
+          echo '<div style="background:#fee;padding:8px;border:1px solid #f00;margin:10px 0;">Failed to add payment_method column: ' . htmlspecialchars($conn->error, ENT_QUOTES) . '</div>';
+        }
+      }
+    }
+
+    // Build appropriate update depending on whether payment_method exists and staffId is null
+    if ($hasPaymentMethod) {
+      if ($staffId === null) {
+        // staffId is NULL in DB
+        $sql = "UPDATE orders SET status = ?, staffId = NULL, payment_method = ? WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+          // status (s), payment_method (s), id (i)
+          $stmt->bind_param('ssi', $statusToSet, $methodToSave, $orderIdInt);
+        }
+      } else {
+        $sql = "UPDATE orders SET status = ?, staffId = ?, payment_method = ? WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+          // status (s), staffId (i), payment_method (s), id (i)
+          $stmt->bind_param('sisi', $statusToSet, $staffId, $methodToSave, $orderIdInt);
+        }
+      }
+    } else {
+      if ($staffId === null) {
+        $sql = "UPDATE orders SET status = ?, staffId = NULL WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+          // status (s), id (i)
+          $stmt->bind_param('si', $statusToSet, $orderIdInt);
+        }
+      } else {
+        $sql = "UPDATE orders SET status = ?, staffId = ? WHERE id = ?";
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+          // status (s), staffId (i), id (i)
+          $stmt->bind_param('sii', $statusToSet, $staffId, $orderIdInt);
+        }
+      }
+    }
+
+    if ($stmt) {
+      if ($stmt->execute()) {
+        // success: redirect to GET so the refreshed page shows updated DB values (Post-Redirect-Get)
+        $stmt->close();
+        $conn->close();
+        $safeMethod = rawurlencode($methodToSave ?? '');
+        header('Location: staff-payments.php?processed=' . (int)$orderIdInt . '&method=' . $safeMethod);
+        exit();
+      } else {
+        $paymentMsg = 'Failed to update order: ' . $stmt->error;
+      }
+      $stmt->close();
+    } else {
+      $paymentMsg = 'Failed to prepare update: ' . $conn->error;
+    }
+  $conn->close();
   }
 }
 ?>
@@ -28,6 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Process Payments - Skyline Coffee Shop</title>
   <link rel="stylesheet" href="../../css/staff/staff-payments.css" />
+  <link rel="stylesheet" href="../../css/staff/staff-common.css" />
 </head>
 
 <body>
@@ -40,293 +139,119 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <li><a href="#about-section">About</a></li>
         <li><a href="#contact-section">Contact</a></li>
         <li><a href="staff-profile.php">Profile</a></li>
-        <li>
-          <a href="staff-login.php" class="logout-icon" title="Log out" aria-label="Log out">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true">
-              <path d="M16 17L21 12L16 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path d="M21 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                stroke-linejoin="round" />
-              <path d="M13 19H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h7" stroke="currentColor" stroke-width="2"
-                stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </a>
-        </li>
+        <li><a href="../logout.php" class="logout-btn" onclick="return confirm('Are you sure you want to logout?');">Logout</a></li>
       </ul>
     </nav>
     <div class="payments-box">
       <img src="../../resources/Brown Modern Circle Coffee Shop Logo.png" alt="Cafe Logo" class="logo" />
       <h2>Process Payments</h2>
       <p>Manage customer payments for orders.</p>
-      <div class="payment-cards-row">
-        <div class="payment-card">
-          <form method="post" action="">
-            <span>Order ID: 001</span>
-            <span>Amount: 360 BDT</span>
-            <span>Status: Pending</span>
-            <div class="payment-methods">
-              <label class="radio-icon">
-                <input type="radio" name="method" value="cash">
-                <img src="../../resources/Cash.png" alt="Cash" title="Cash" onerror="this.style.display='none'">
-                Cash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="bkash">
-                <img src="../../resources/BKash.png" alt="Bkash" title="Bkash" onerror="this.style.display='none'">
-                Bkash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="card">
-                <img src="../../resources/atm-card.png" alt="Card" title="Card" onerror="this.style.display='none'">
-                Card
-              </label>
-            </div>
-            <input type="hidden" name="order_id" value="001" />
-            <button type="submit" class="btn process-btn">Process</button>
-            <?php if ($lastOrderId === '001' && $paymentMsg): ?>
-              <p class="error"><?php echo htmlspecialchars($paymentMsg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></p>
-            <?php endif; ?>
-          </form>
-        </div>
-        <div class="payment-card">
-          <form method="post" action="">
-            <span>Order ID: 002</span>
-            <span>Amount: 250 BDT</span>
-            <span>Status: Completed</span>
-            <div class="payment-methods">
-              <label class="radio-icon">
-                <input type="radio" name="method" value="cash">
-                <img src="../../resources/Cash.png" alt="Cash" title="Cash" onerror="this.style.display='none'">
-                Cash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="bkash">
-                <img src="../../resources/BKash.png" alt="Bkash" title="Bkash" onerror="this.style.display='none'">
-                Bkash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="card">
-                <img src="../../resources/atm-card.png" alt="Card" title="Card" onerror="this.style.display='none'">
-                Card
-              </label>
-            </div>
-            <input type="hidden" name="order_id" value="002" />
-            <button type="submit" class="btn process-btn" disabled>Processed</button>
-            <?php if ($lastOrderId === '002' && $paymentMsg): ?>
-              <p class="error"><?php echo htmlspecialchars($paymentMsg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></p>
-            <?php endif; ?>
-          </form>
-        </div>
-        <div class="payment-card">
-          <form method="post" action="">
-            <span>Order ID: 003</span>
-            <span>Amount: 440 BDT</span>
-            <span>Status: Pending</span>
-            <div class="payment-methods">
-              <label class="radio-icon">
-                <input type="radio" name="method" value="cash">
-                <img src="../../resources/Cash.png" alt="Cash" title="Cash" onerror="this.style.display='none'">
-                Cash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="bkash">
-                <img src="../../resources/BKash.png" alt="Bkash" title="Bkash" onerror="this.style.display='none'">
-                Bkash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="card">
-                <img src="../../resources/atm-card.png" alt="Card" title="Card" onerror="this.style.display='none'">
-                Card
-              </label>
-            </div>
-            <input type="hidden" name="order_id" value="003" />
-            <button type="submit" class="btn process-btn">Process</button>
-            <?php if ($lastOrderId === '003' && $paymentMsg): ?>
-              <p class="error"><?php echo htmlspecialchars($paymentMsg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></p>
-            <?php endif; ?>
-          </form>
-        </div>
-      </div>
-      <div class="payment-cards-row">
-        <div class="payment-card">
-          <form method="post" action="">
-            <span>Order ID: 004</span>
-            <span>Amount: 180 BDT</span>
-            <span>Status: Pending</span>
-            <div class="payment-methods">
-              <label class="radio-icon">
-                <input type="radio" name="method" value="cash">
-                <img src="../../resources/Cash.png" alt="Cash" title="Cash" onerror="this.style.display='none'">
-                Cash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="bkash">
-                <img src="../../resources/BKash.png" alt="Bkash" title="Bkash" onerror="this.style.display='none'">
-                Bkash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="card">
-                <img src="../../resources/atm-card.png" alt="Card" title="Card" onerror="this.style.display='none'">
-                Card
-              </label>
-            </div>
-            <input type="hidden" name="order_id" value="004" />
-            <button type="submit" class="btn process-btn">Process</button>
-            <?php if ($lastOrderId === '004' && $paymentMsg): ?>
-              <p class="error"><?php echo htmlspecialchars($paymentMsg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></p>
-            <?php endif; ?>
-          </form>
-        </div>
-        <div class="payment-card">
-          <form method="post" action="">
-            <span>Order ID: 005</span>
-            <span>Amount: 520 BDT</span>
-            <span>Status: Completed</span>
-            <div class="payment-methods">
-              <label class="radio-icon">
-                <input type="radio" name="method" value="cash">
-                <img src="../../resources/Cash.png" alt="Cash" title="Cash" onerror="this.style.display='none'">
-                Cash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="bkash">
-                <img src="../../resources/BKash.png" alt="Bkash" title="Bkash" onerror="this.style.display='none'">
-                Bkash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="card">
-                <img src="../../resources/atm-card.png" alt="Card" title="Card" onerror="this.style.display='none'">
-                Card
-              </label>
-            </div>
-            <input type="hidden" name="order_id" value="005" />
-            <button type="submit" class="btn process-btn" disabled>Processed</button>
-            <?php if ($lastOrderId === '005' && $paymentMsg): ?>
-              <p class="error"><?php echo htmlspecialchars($paymentMsg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></p>
-            <?php endif; ?>
-          </form>
-        </div>
-        <div class="payment-card">
-          <form method="post" action="">
-            <span>Order ID: 006</span>
-            <span>Amount: 210 BDT</span>
-            <span>Status: Pending</span>
-            <div class="payment-methods">
-              <label class="radio-icon">
-                <input type="radio" name="method" value="cash">
-                <img src="../../resources/Cash.png" alt="Cash" title="Cash" onerror="this.style.display='none'">
-                Cash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="bkash">
-                <img src="../../resources/BKash.png" alt="Bkash" title="Bkash" onerror="this.style.display='none'">
-                Bkash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="card">
-                <img src="../../resources/atm-card.png" alt="Card" title="Card" onerror="this.style.display='none'">
-                Card
-              </label>
-            </div>
-            <input type="hidden" name="order_id" value="006" />
-            <button type="submit" class="btn process-btn">Process</button>
-            <?php if ($lastOrderId === '006' && $paymentMsg): ?>
-              <p class="error"><?php echo htmlspecialchars($paymentMsg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></p>
-            <?php endif; ?>
-          </form>
-        </div>
-      </div>
-      <div class="payment-cards-row">
-        <div class="payment-card">
-          <form method="post" action="">
-            <span>Order ID: 007</span>
-            <span>Amount: 390 BDT</span>
-            <span>Status: Completed</span>
-            <div class="payment-methods">
-              <label class="radio-icon">
-                <input type="radio" name="method" value="cash">
-                <img src="../../resources/Cash.png" alt="Cash" title="Cash" onerror="this.style.display='none'">
-                Cash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="bkash">
-                <img src="../../resources/BKash.png" alt="Bkash" title="Bkash" onerror="this.style.display='none'">
-                Bkash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="card">
-                <img src="../../resources/atm-card.png" alt="Card" title="Card" onerror="this.style.display='none'">
-                Card
-              </label>
-            </div>
-            <input type="hidden" name="order_id" value="007" />
-            <button type="submit" class="btn process-btn" disabled>Processed</button>
-            <?php if ($lastOrderId === '007' && $paymentMsg): ?>
-              <p class="error"><?php echo htmlspecialchars($paymentMsg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></p>
-            <?php endif; ?>
-          </form>
-        </div>
-        <div class="payment-card">
-          <form method="post" action="">
-            <span>Order ID: 008</span>
-            <span>Amount: 310 BDT</span>
-            <span>Status: Pending</span>
-            <div class="payment-methods">
-              <label class="radio-icon">
-                <input type="radio" name="method" value="cash">
-                <img src="../../resources/Cash.png" alt="Cash" title="Cash" onerror="this.style.display='none'">
-                Cash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="bkash">
-                <img src="../../resources/BKash.png" alt="Bkash" title="Bkash" onerror="this.style.display='none'">
-                Bkash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="card">
-                <img src="../../resources/atm-card.png" alt="Card" title="Card" onerror="this.style.display='none'">
-                Card
-              </label>
-            </div>
-            <input type="hidden" name="order_id" value="008" />
-            <button type="submit" class="btn process-btn">Process</button>
-            <?php if ($lastOrderId === '008' && $paymentMsg): ?>
-              <p class="error"><?php echo htmlspecialchars($paymentMsg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></p>
-            <?php endif; ?>
-          </form>
-        </div>
-        <div class="payment-card">
-          <form method="post" action="">
-            <span>Order ID: 009</span>
-            <span>Amount: 470 BDT</span>
-            <span>Status: Pending</span>
-            <div class="payment-methods">
-              <label class="radio-icon">
-                <input type="radio" name="method" value="cash">
-                <img src="../../resources/Cash.png" alt="Cash" title="Cash" onerror="this.style.display='none'">
-                Cash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="bkash">
-                <img src="../../resources/BKash.png" alt="Bkash" title="Bkash" onerror="this.style.display='none'">
-                Bkash
-              </label>
-              <label class="radio-icon">
-                <input type="radio" name="method" value="card">
-                <img src="../../resources/atm-card.png" alt="Card" title="Card" onerror="this.style.display='none'">
-                Card
-              </label>
-            </div>
-            <input type="hidden" name="order_id" value="009" />
-            <button type="submit" class="btn process-btn">Process</button>
-            <?php if ($lastOrderId === '009' && $paymentMsg): ?>
-              <p class="error"><?php echo htmlspecialchars($paymentMsg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></p>
-            <?php endif; ?>
-          </form>
-        </div>
-        <!-- per-order messages displayed inside each payment card -->
-      </div>
+      <?php
+  // Fetch recent orders with product price to compute amounts
+    $conn = connect_db();
+  // read processed flash (if redirected after processing)
+  $processedOrderId = isset($_GET['processed']) ? (int)$_GET['processed'] : 0;
+  $processedMethod = isset($_GET['method']) ? rawurldecode($_GET['method']) : '';
+    // First attempt: include payment_method (newer schema). If that fails (older DB), fall back to a query without it.
+    $orders = [];
+    $ordersQueryWithMethod = "SELECT o.id, o.quantity, o.status, o.payment_method, o.created_at, p.name AS product_name, p.price, u.name AS customer_name
+            FROM orders o
+            LEFT JOIN products p ON o.productId = p.id
+            LEFT JOIN users u ON o.userId = u.id
+            ORDER BY o.created_at DESC LIMIT 30";
+    $ordersRes = $conn->query($ordersQueryWithMethod);
+    if ($ordersRes === false) {
+      // fallback for databases that don't yet have payment_method column
+      $fallbackQuery = "SELECT o.id, o.quantity, o.status, o.created_at, p.name AS product_name, p.price, u.name AS customer_name
+            FROM orders o
+            LEFT JOIN products p ON o.productId = p.id
+            LEFT JOIN users u ON o.userId = u.id
+            ORDER BY o.created_at DESC LIMIT 30";
+      $ordersRes = $conn->query($fallbackQuery);
+      if ($ordersRes === false) {
+        // optional debug output when requested
+        if (isset($_GET['debug']) && $_GET['debug'] === '1') {
+          echo '<div style="background:#fee;padding:8px;border:1px solid #f00;margin:10px 0;">DB error: ' . htmlspecialchars($conn->error, ENT_QUOTES) . '</div>';
+        }
+      } else {
+        while ($or = $ordersRes->fetch_assoc()) {
+          // ensure payment_method key exists for downstream code
+          $or['payment_method'] = null;
+          $orders[] = $or;
+        }
+      }
+    } else {
+      while ($or = $ordersRes->fetch_assoc()) {
+        $orders[] = $or;
+      }
+    }
+    $conn->close();
+
+    if (empty($orders)) {
+      echo '<p>No orders found.</p>';
+    } else {
+      // show a global processed banner when redirected after successful processing
+      if ($processedOrderId > 0) {
+        $bannerMethod = $processedMethod ? htmlspecialchars($processedMethod, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : 'Unknown';
+        echo '<div class="processed-banner">Payment done for Order ' . sprintf('%03d', $processedOrderId) . ' using ' . $bannerMethod . '.</div>';
+      }
+
+      echo '<div class="payment-cards-row">';
+      foreach ($orders as $ord) {
+        $oid = (int)$ord['id'];
+        $amount = number_format((float)$ord['price'] * (int)$ord['quantity'], 2);
+        $statusRaw = $ord['status'] ?? 'pending';
+        $status = htmlspecialchars($statusRaw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $cust = htmlspecialchars($ord['customer_name'] ?? 'Guest', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $pmRaw = isset($ord['payment_method']) && $ord['payment_method'] !== null ? $ord['payment_method'] : null;
+        $pm = $pmRaw !== null ? htmlspecialchars($pmRaw, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') : null;
+
+        // Determine paid/unpaid: consider an order paid if status is 'delivered' and payment_method is set
+        $isPaid = (strtolower((string)$statusRaw) === 'delivered' && $pmRaw !== null && $pmRaw !== '');
+
+        echo '<div class="payment-card">';
+        echo '<form method="post" action="">';
+        echo "<span>Order ID: " . sprintf('%03d', $oid) . "</span>";
+        echo "<span>Customer: $cust</span>";
+        echo "<span>Amount: $amount</span>";
+        // show existing method if present
+        if ($pm !== null) {
+          echo "<span>Method: $pm</span>";
+        } else {
+          echo "<span>Method: Not set</span>";
+        }
+        echo "<span>Status: $status</span>";
+
+        // show paid/unpaid badge
+        if ($isPaid) {
+          echo '<span class="badge paid">Paid</span>';
+        } else {
+          echo '<span class="badge unpaid">Unpaid</span>';
+        }
+
+        echo '<div class="payment-methods">';
+        echo '<label class="radio-icon"><input type="radio" name="method" value="cash"' . ($pmRaw === 'cash' ? ' checked' : '') . '>Cash</label>';
+        echo '<label class="radio-icon"><input type="radio" name="method" value="bkash"' . ($pmRaw === 'bkash' ? ' checked' : '') . '>Bkash</label>';
+        echo '<label class="radio-icon"><input type="radio" name="method" value="card"' . ($pmRaw === 'card' ? ' checked' : '') . '>Card</label>';
+        echo '</div>';
+
+        echo "<input type=\"hidden\" name=\"order_id\" value=\"$oid\" />";
+        // Allow processing even when status is 'delivered'. Show 'Reprocess' label in that case.
+        $btnLabel = (strtolower((string)$statusRaw) === 'delivered') ? 'Reprocess' : 'Process';
+        echo "<button type=\"submit\" class=\"btn process-btn\">$btnLabel</button>";
+
+        // show per-order message if applicable
+        if ($lastOrderId && (string)$lastOrderId === (string)$oid && $paymentMsg) {
+          echo '<p class="error">' . htmlspecialchars($paymentMsg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</p>';
+        }
+
+        echo '</form>';
+        echo '</div>';
+      }
+      echo '</div>';
+    }
+      ?>
+        <!-- static sample cards removed; page now only displays orders from DB -->
       <footer class="footer">
         <div class="footer-content">
           <div class="footer-section" id="contact-section">

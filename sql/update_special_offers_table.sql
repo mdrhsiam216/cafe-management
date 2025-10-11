@@ -1,0 +1,3 @@
+ALTER TABLE special_offers
+ADD COLUMN genuine_price DECIMAL(10, 2) NOT NULL,
+ADD COLUMN discount DECIMAL(5, 2) NOT NULL;

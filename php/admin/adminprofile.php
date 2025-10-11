@@ -1,92 +1,152 @@
 <?php
 require_once 'admin_functions.php';
 validateAdminAccess();
+require_once __DIR__ . '/../rdb.php';
 
-$username = $email = $pic = $old_password = $new_password = $confirm_password = "";
-$username_err = $email_err = $pic_err = $old_password_err = $new_password_err = $confirm_password_err = "";
-$success_msg = "";
+$profileMsg = '';
+$passwordMsg = '';
+$uploadErr = '';
 
-
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['do']) && $_POST['do'] === 'reset') {
-    header("Location: " . strtok($_SERVER["REQUEST_URI"], '?'));
-    exit;
+// current user id from session
+$userId = $_SESSION['user_id'] ?? null;
+if (!$userId) {
+    header('Location: ../login.php');
+    exit();
 }
 
-if ($_SERVER["REQUEST_METHOD"] === "POST" && (!isset($_POST['do']) || $_POST['do'] !== 'reset')) {
+$conn = connect_db();
 
+// helper: fetch current user
+function fetch_user($conn, $userId) {
+    $stmt = $conn->prepare('SELECT id, name, email, photo, password FROM users WHERE id = ? LIMIT 1');
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $row = $res ? $res->fetch_assoc() : null;
+    $stmt->close();
+    return $row;
+}
 
-    if (empty(trim($_POST["username"]))) {
-        $username_err = "Please enter your username.";
-    } else {
-        $username = trim($_POST["username"]);
-    }
+$user = fetch_user($conn, $userId);
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Update profile (name, email, optional photo)
+    if (isset($_POST['update_profile'])) {
+        $name = trim($_POST['name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
 
-    if (empty(trim($_POST["email"]))) {
-        $email_err = "Please enter your email.";
-    } elseif (!filter_var(trim($_POST["email"]), FILTER_VALIDATE_EMAIL)) {
-        $email_err = "Invalid email format.";
-    } else {
-        $email = trim($_POST["email"]);
-    }
+        if ($name === '' || $email === '') {
+            $profileMsg = 'Name and email are required.';
+        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $profileMsg = 'Please enter a valid email address.';
+        } else {
+            // handle optional photo upload
+            if (!empty($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+                $f = $_FILES['photo'];
+                $allowed = ['jpg','jpeg','png','gif'];
+                $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
+                if (!in_array($ext, $allowed, true)) {
+                    $uploadErr = 'Unsupported image format.';
+                } else {
+                    $uploadDir = __DIR__ . '/../../resources/uploads/users/';
+                    if (!is_dir($uploadDir)) {
+                        @mkdir($uploadDir, 0755, true);
+                    }
+                    $newName = uniqid('u_', true) . '.' . $ext;
+                    $dest = $uploadDir . $newName;
+                    if (move_uploaded_file($f['tmp_name'], $dest)) {
+                        $photoPath = 'uploads/users/' . $newName; // stored relative to resources/
+                    } else {
+                        $uploadErr = 'Failed to move uploaded file.';
+                    }
+                }
+            }
 
+            // update DB
+            $fields = 'name = ?, email = ?';
+            $params = [$name, $email];
+            $types = 'ss';
+            if (!empty($photoPath)) {
+                $fields .= ', photo = ?';
+                $types .= 's';
+                $params[] = $photoPath;
+            }
+            $types .= 'i';
+            $params[] = $userId;
 
-    if (empty(trim($_POST["pic"]))) {
-        $pic_err = "Please enter your profile picture.";
-    } else {
-        $pic = trim($_POST["pic"]);
-    }
-
-    if (empty(trim($_POST["old_password"]))) {
-        $old_password_err = "Please enter your old password.";
-    } else {
-        $old_password = trim($_POST["old_password"]);
-    }
-
-    if (empty(trim($_POST["new_password"]))) {
-        $new_password_err = "Please enter a new password.";
-    } elseif (strlen(trim($_POST["new_password"])) < 4) {
-        $new_password_err = "Password must have at least 4 characters.";
-    } else {
-        $new_password = trim($_POST["new_password"]);
-    }
-
-
-    if (empty(trim($_POST["confirm_password"]))) {
-        $confirm_password_err = "Please confirm new password.";
-    } else {
-        $confirm_password = trim($_POST["confirm_password"]);
-        if (empty($new_password_err) && ($new_password != $confirm_password)) {
-            $confirm_password_err = "Passwords do not match.";
+            $sql = "UPDATE users SET {$fields} WHERE id = ?";
+            $uStmt = $conn->prepare($sql);
+            if ($uStmt) {
+                $uStmt->bind_param($types, ...$params);
+                if ($uStmt->execute()) {
+                    $_SESSION['user_name'] = $name;
+                    $_SESSION['user_email'] = $email;
+                    $profileMsg = 'Profile updated successfully.' . ($uploadErr ? ' Photo: ' . $uploadErr : '');
+                } else {
+                    $profileMsg = 'Failed to update user: ' . $uStmt->error;
+                }
+                $uStmt->close();
+            } else {
+                $profileMsg = 'Failed to prepare user update: ' . $conn->error;
+            }
         }
     }
 
-    if (
-        empty($username_err) &&
-        empty($email_err) &&
-        empty($pic_err) &&
-        empty($old_password_err) &&
-        empty($new_password_err) &&
-        empty($confirm_password_err)
-    ) {
+    // Password change
+    if (isset($_POST['change_password'])) {
+        $current = $_POST['current-password'] ?? '';
+        $new = $_POST['new-password'] ?? '';
+        $confirm = $_POST['confirm-password'] ?? '';
 
-
-        $success_msg = "Profile updated successfully!";
+        if ($current === '' || $new === '' || $confirm === '') {
+            $passwordMsg = 'All password fields are required.';
+        } elseif ($new !== $confirm) {
+            $passwordMsg = 'New passwords do not match.';
+        } elseif (strlen($new) < 6) {
+            $passwordMsg = 'New password must be at least 6 characters.';
+        } else {
+            // verify stored password (preserve existing plaintext logic)
+            $row = fetch_user($conn, $userId);
+            $stored = $row['password'] ?? null;
+            if ($stored === null) {
+                $passwordMsg = 'Unable to verify current password.';
+            } elseif (!hash_equals((string)$stored, (string)$current)) {
+                $passwordMsg = 'Current password is incorrect.';
+            } else {
+                $upd = $conn->prepare('UPDATE users SET password = ? WHERE id = ?');
+                if ($upd) {
+                    $upd->bind_param('si', $new, $userId);
+                    if ($upd->execute()) {
+                        $passwordMsg = 'Password changed successfully.';
+                    } else {
+                        $passwordMsg = 'Failed to update password: ' . $upd->error;
+                    }
+                    $upd->close();
+                } else {
+                    $passwordMsg = 'Failed to prepare password update: ' . $conn->error;
+                }
+            }
+        }
     }
+
+    // refresh user data after POST
+    $user = fetch_user($conn, $userId) ?: $user;
 }
+
+$conn->close();
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Profile</title>
-    <link rel="stylesheet" href="../css/adminprofile.css">
+    <link rel="stylesheet" href="../../css/staff/staff-profile.css">
+    <link rel="stylesheet" href="../../css/staff/staff-common.css">
 </head>
-
 <body>
     <div class="container">
-
         <nav class="navbar">
             <ul class="nav-links">
                 <li><a href="dashboard.php">Home</a></li>
@@ -94,72 +154,94 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && (!isset($_POST['do']) || $_POST['do
                 <li><a href="manage-products.php">Products</a></li>
                 <li><a href="manage-users.php">Users</a></li>
                 <li><a href="adminprofile.php" class="active">Profile</a></li>
+                <li><a href="logout.php" class="logout-btn" onclick="return confirm('Are you sure you want to logout?');">Logout</a></li>
             </ul>
         </nav>
 
-        <div class="logout1">
-            <a href="../php/admindash.php">Logout</a>
-        </div>
+        <div class="profile-container">
+            <div class="profile-header">
+                <img src="<?php echo htmlspecialchars($user['photo'] ? '../../resources/' . $user['photo'] : '../../resources/userphoto.jpg', ENT_QUOTES); ?>" alt="Profile Picture" class="profile-picture">
+                <div class="user-name"><?php echo htmlspecialchars($user['name'] ?? 'Admin', ENT_QUOTES); ?></div>
+            </div>
 
-        <h2 class="middletitle">UPDATE PROFILE</h2>
-
-        <?php if (!empty($success_msg)): ?>
-            <p style="color: green; font-weight: bold; text-align:center;"><?php echo $success_msg; ?></p>
-        <?php endif; ?>
-
-        <section class="update-product">
-            <form action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]); ?>" method="post" enctype="multipart/form-data">
-                <!-- Profile image preview (static) -->
-                <img src="../../resources/userphoto.jpg" alt="profile picture">
-
-                <div class="flex">
-                    <div class="inputBox">
-                        <span>Username :</span>
-                        <input type="text" name="username" class="box" value="<?php echo $username; ?>" placeholder="Enter username">
-                        <p style="color: red;"><?php echo $username_err; ?></p>
-
-                        <span>Email :</span>
-                        <input type="email" name="email" class="box" value="<?php echo $email; ?>" placeholder="Enter email">
-                        <p style="color: red;"><?php echo $email_err; ?></p>
-
-                        <span>Update Picture :</span>
-                        <input type="file" name="pic" class="box" accept="image/jpg, image/jpeg, image/png">
-                    </div>
-
-                    <div class="inputBox">
-                        <span>Old Password :</span>
-                        <input type="password" name="old_password" class="box" placeholder="Enter old password">
-                        <p style="color: red;"><?php echo $old_password_err; ?></p>
-
-                        <span>New Password :</span>
-                        <input type="password" name="new_password" class="box" placeholder="Enter new password">
-                        <p style="color: red;"><?php echo $new_password_err; ?></p>
-
-                        <span>Confirm Password :</span>
-                        <input type="password" name="confirm_password" class="box" placeholder="Confirm new password">
-                        <p style="color: red;"><?php echo $confirm_password_err; ?></p>
-                    </div>
+            <h2>Admin Profile</h2>
+            <form class="profile-form" method="post" action="" enctype="multipart/form-data" novalidate>
+                <div class="form-group">
+                    <label for="name">Full Name:</label>
+                    <input type="text" id="name" name="name" value="<?php echo htmlspecialchars($user['name'] ?? '', ENT_QUOTES); ?>" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($user['email'] ?? '', ENT_QUOTES); ?>" required>
+                </div>
+                <div class="form-group">
+                    <label for="role">Role:</label>
+                    <input type="text" id="role" name="role" value="<?php echo htmlspecialchars($_SESSION['user_role'] ?? 'admin', ENT_QUOTES); ?>" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="photo">Update Picture:</label>
+                    <input type="file" id="photo" name="photo" accept="image/*">
+                </div>
+                <div class="form-group">
+                    <button type="button" class="change-password-btn" id="openPasswordModal">Change Password</button>
                 </div>
 
-                <div class="btn">
-                    <input type="submit" value="Update Profile" class="btn">
+                <input type="hidden" name="update_profile" value="1" />
+                <button type="submit" class="update-profile-btn">Update Profile</button>
 
-                    <button type="submit" name="do" value="reset" class="btn">Reset</button>
-                </div>
+                <?php if ($profileMsg): ?>
+                    <p class="error"><?php echo htmlspecialchars($profileMsg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></p>
+                <?php endif; ?>
+                <?php if ($uploadErr): ?>
+                    <p class="error"><?php echo htmlspecialchars($uploadErr, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></p>
+                <?php endif; ?>
+                <?php if ($passwordMsg): ?>
+                    <p class="error"><?php echo htmlspecialchars($passwordMsg, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); ?></p>
+                <?php endif; ?>
             </form>
-        </section>
+
+            <!-- Password Change Modal (separate form) -->
+            <div id="passwordModal" class="modal">
+                <div class="modal-content">
+                    <span class="close" id="closePasswordModal">&times;</span>
+                    <h3>Change Password</h3>
+                    <form class="password-form" method="post" action="" novalidate>
+                        <div class="form-group">
+                            <label for="current-password">Current Password:</label>
+                            <input type="password" id="current-password" name="current-password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-password">New Password:</label>
+                            <input type="password" id="new-password" name="new-password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm-password">New Password Again:</label>
+                            <input type="password" id="confirm-password" name="confirm-password" required>
+                        </div>
+                        <input type="hidden" name="change_password" value="1" />
+                        <button type="submit" class="confirm-btn">Confirm</button>
+                    </form>
+                </div>
+            </div>
+        </div>
 
         <footer class="footer">
             <div class="footer-content">
-                <div class="footer-section">
+                <div class="footer-section" id="contact-section">
                     <h3>Contact Us</h3>
-                    <p>Email: <a href="mailto:info@skylinecoffee.com">info@skylinecoffee.com</a></p>
+                    <p>
+                        Email:
+                        <a href="mailto:info@skylinecoffee.com">info@skylinecoffee.com</a>
+                    </p>
                     <p>Phone: <a href="tel:+8801234567890">+880 123 456 7890</a></p>
                     <p>Address: 123 Skyline Avenue, Dhaka</p>
                 </div>
-                <div class="footer-section">
+                <div class="footer-section" id="about-section">
                     <h3>About Us</h3>
-                    <p>We are passionate about serving the finest coffee, crafted with love and expertise. Join us for a unique coffee experience!</p>
+                    <p>
+                        We are passionate about serving the finest coffee, crafted with
+                        love and expertise. Join us for a unique coffee experience!
+                    </p>
                 </div>
                 <div class="footer-section">
                     <h3>Newsletter</h3>
@@ -171,13 +253,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && (!isset($_POST['do']) || $_POST['do
                     <h3>Follow Us</h3>
                     <div class="social-links">
                         <a href="https://facebook.com" class="social-icon" aria-label="Facebook">
-                            <img src="https://img.icons8.com/ios-filled/50/ffffff/facebook-new.png" alt="Facebook" class="social-logo" />
+                            <img src="https://img.icons8.com/ios-filled/50/ffffff/facebook-new.png" alt="Facebook Logo" class="social-logo" />
                         </a>
                         <a href="https://instagram.com" class="social-icon" aria-label="Instagram">
-                            <img src="https://img.icons8.com/ios-filled/50/ffffff/instagram-new.png" alt="Instagram" class="social-logo" />
+                            <img src="https://img.icons8.com/ios-filled/50/ffffff/instagram-new.png" alt="Instagram Logo" class="social-logo" />
                         </a>
                         <a href="https://x.com" class="social-icon" aria-label="X">
-                            <img src="https://img.icons8.com/ios-filled/50/ffffff/x.png" alt="X" class="social-logo" />
+                            <img src="https://img.icons8.com/ios-filled/50/ffffff/x.png" class="social-logo" />
                         </a>
                     </div>
                 </div>
@@ -190,62 +272,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && (!isset($_POST['do']) || $_POST['do
     </div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
-
-            const picInput = document.querySelector('input[name="pic"]');
-            const imgEl = document.querySelector('section.update-product img');
-
-            picInput?.addEventListener("change", e => {
-                const file = e.target.files[0];
-                if (file && file.type.startsWith("image/")) {
-                    imgEl.src = URL.createObjectURL(file);
-                }
-            });
-
-
-            const form = document.querySelector("form");
-            form?.addEventListener("submit", e => {
-                const username = form.username.value.trim();
-                const email = form.email.value.trim();
-                const newPass = form.new_password.value;
-                const conPass = form.confirm_password.value;
-
-                if (!username) {
-                    alert("Username is required");
-                    e.preventDefault();
-                } else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-                    alert("Enter valid email");
-                    e.preventDefault();
-                } else if (newPass && newPass !== conPass) {
-                    alert("Passwords do not match");
-                    e.preventDefault();
-                }
-            });
-
-            const logoutLink = document.querySelector(".logout1 a");
-            if (logoutLink) {
-                logoutLink.addEventListener("click", function(e) {
-                    if (!confirm("Are you sure you want to logout?")) {
-                        e.preventDefault();
-                    }
-                });
+        // Modal open/close logic (same pattern as staff profile)
+        const modal = document.getElementById('passwordModal');
+        const openBtn = document.getElementById('openPasswordModal');
+        const closeBtn = document.getElementById('closePasswordModal');
+        openBtn.onclick = function() {
+            modal.style.display = 'block';
+        }
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        }
+        window.onclick = function(event) {
+            if (event.target === modal) {
+                modal.style.display = 'none';
             }
-
-
-            const formBtn = document.querySelector(".newsletter-btn");
-            formBtn.addEventListener("click", function() {
-                const email = document.querySelector(".newsletter-input").value.trim();
-                if (!email) {
-                    alert("Please enter your email!");
-                } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                    alert("Please enter a valid email!");
-                } else {
-                    alert("Thank you for subscribing, " + email + "!");
-                }
-            });
-        });
+        }
     </script>
-
 </body>
-
 </html>

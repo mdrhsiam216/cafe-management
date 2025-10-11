@@ -5,7 +5,7 @@ html {
 body {
   margin: 0;
   font-family: "Open Sans", Arial, sans-serif;
-  background-image: url("../Images/Background.png");
+  background-image: url("../../resources/Background.png");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -92,7 +92,8 @@ body {
 }
 
 .hero-section {
-  background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("../Images/coffee-bg.jpg");
+  background: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)),
+    url("../Images/coffee-bg.jpg");
   background-size: cover;
   background-position: center;
   padding: 60px 20px;

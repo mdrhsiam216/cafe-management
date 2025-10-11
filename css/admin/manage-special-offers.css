@@ -1,3 +1,4 @@
+/* Styles for Manage Special Offers Page */
 html {
   scroll-behavior: smooth;
 }
@@ -25,47 +26,46 @@ body {
   max-width: 1200px;
   margin: 0 auto;
 }
-
 .navbar {
   position: sticky;
   top: 0;
-  background-color: #2c3e50;
-  padding: 15px 0;
-  border-radius: 8px;
+  background-color: #333;
+  padding: 10px 20px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   margin-bottom: 20px;
   width: 100%;
   max-width: 1200px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   z-index: 1000;
 }
 
-.nav-links {
+.navbar .nav-links {
   list-style: none;
+  display: flex;
+  justify-content: space-around;
   padding: 0;
   margin: 0;
-  display: flex;
-  justify-content: center;
-  gap: 30px;
 }
 
-.nav-links li {
-  display: inline;
+.navbar .nav-links li {
+  margin: 0 10px;
 }
 
-.nav-links a {
+.navbar .nav-links a {
   color: #fff;
   text-decoration: none;
-  font-family: "Lora", serif;
-  font-size: 16px;
-  font-weight: 500;
-  padding: 10px 20px;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  font-weight: 600;
+  padding: 10px 15px;
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
 }
 
-.nav-links a:hover {
-  background-color: #d4a574;
-  color: #2c3e50;
-  border-radius: 6px;
+.navbar .nav-links a:hover {
+  background-color: #555;
+}
+
+.navbar .nav-links .active {
+  background-color: #444;
+  font-weight: bold;
 }
 
 .logout1 a {
@@ -388,4 +388,112 @@ button {
     width: 24px;
     height: 24px;
   }
+}
+
+body {
+  font-family: "Open Sans", sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f9f9f9;
+}
+
+h1 {
+  text-align: center;
+  color: #333;
+  margin-top: 20px;
+}
+
+form {
+  max-width: 600px;
+  margin: 20px auto;
+  padding: 20px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+form h2 {
+  margin-bottom: 15px;
+  color: #555;
+}
+
+form label {
+  display: block;
+  margin-bottom: 5px;
+  color: #666;
+}
+
+form input,
+form textarea,
+form button {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+form button {
+  background-color: #5cb85c;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+form button:hover {
+  background-color: #4cae4c;
+}
+
+table {
+  width: 90%;
+  margin: 20px auto;
+  border-collapse: collapse;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+table th,
+table td {
+  padding: 10px;
+  text-align: left;
+  border: 1px solid #ddd;
+}
+
+table th {
+  background-color: #f4f4f4;
+  color: #333;
+}
+
+table img {
+  max-width: 50px;
+  border-radius: 4px;
+}
+
+table a {
+  color: #d9534f;
+  text-decoration: none;
+}
+
+table a:hover {
+  text-decoration: underline;
+}
+
+/* Back to Dashboard Button */
+.back-to-dashboard {
+  text-align: center;
+  margin: 20px 0;
+}
+.back-to-dashboard .btn {
+  display: inline-block;
+  padding: 10px 20px;
+  background-color: #333;
+  color: #fff;
+  text-decoration: none;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+}
+.back-to-dashboard .btn:hover {
+  background-color: #555;
 }

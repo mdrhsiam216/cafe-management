@@ -7,7 +7,7 @@ function isLoggedIn() {
 
 function requireLogin() {
     if (!isLoggedIn()) {
-        header("Location: /diganto-cafe/php/login.php");
+        header("Location: /cafe-management/php/login.php");
         exit();
     }
 }
@@ -18,16 +18,16 @@ function requireRole($allowedRoles) {
     if (!in_array($_SESSION['user_role'], $allowedRoles)) {
         switch($_SESSION['user_role']) {
             case 'admin':
-                header("Location: /diganto-cafe/php/admin/dashboard.php");
+                header("Location: /cafe-management/php/admin/dashboard.php");
                 break;
             case 'staff':
-                header("Location: /diganto-cafe/php/staff/staff-orders.php");
+                header("Location: /cafe-management/php/staff/staff-orders.php");
                 break;
             case 'customer':
-                header("Location: /diganto-cafe/php/customer/dashboard.php");
+                header("Location: /cafe-management/php/customer/dashboard.php");
                 break;
             default:
-                header("Location: /diganto-cafe/index.php");
+                header("Location: /cafe-management/index.php");
         }
         exit();
     }
@@ -37,16 +37,16 @@ function redirectIfLoggedIn() {
     if (isLoggedIn()) {
         switch($_SESSION['user_role']) {
             case 'admin':
-                header("Location: /diganto-cafe/php/admin/dashboard.php");
+                header("Location: /cafe-management/php/admin/dashboard.php");
                 break;
             case 'staff':
-                header("Location: /diganto-cafe/php/staff/staff-orders.php");
+                header("Location: /cafe-management/php/staff/staff-orders.php");
                 break;
             case 'customer':
-                header("Location: /diganto-cafe/php/customer/dashboard.php");
+                header("Location: /cafe-management/php/customer/dashboard.php");
                 break;
             default:
-                header("Location: /diganto-cafe/index.php");
+                header("Location: /cafe-management/index.php");
         }
         exit();
     }

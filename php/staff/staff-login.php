@@ -1,51 +1,56 @@
 <?php
 // Simple server-side validation and demo authentication for staff login
 session_start();
+require_once '../rdb.php';
 
 $errorMessage = '';
-$staffIdValue = '';
+$emailValue = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Basic sanitization
-    $staffId = isset($_POST['staffId']) ? trim($_POST['staffId']) : '';
+    $email = isset($_POST['email']) ? trim($_POST['email']) : '';
     $password = isset($_POST['password']) ? $_POST['password'] : '';
     $remember = isset($_POST['remember']);
 
-    $staffIdValue = htmlspecialchars($staffId, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $emailValue = htmlspecialchars($email, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
-    // Validation rules
-    if ($staffId === '') {
-        $errorMessage = 'Please enter your Staff ID.';
-    } elseif (!preg_match('/^S\d{3,}$/i', $staffId)) {
-        // Example: Staff IDs like S123 or S1234
-        $errorMessage = 'Staff ID must start with "S" followed by at least 3 digits.';
-    } elseif ($password === '' || strlen($password) < 6) {
-        $errorMessage = 'Password must be at least 6 characters.';
+    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $errorMessage = 'Please enter a valid email address.';
+    } elseif ($password === '' || strlen($password) < 1) {
+        $errorMessage = 'Password is required.';
     } else {
-        // Demo authentication: replace this with real DB lookup in production
-        // For demo accept staffId S1234 and password "password123"
-        $validStaff = [
-            'S1234' => 'password123',
-            'S1000' => 'welcome1'
-        ];
+        // DB lookup for staff user
+        $conn = connect_db();
+        $stmt = $conn->prepare('SELECT id, name, email, role, password FROM users WHERE email = ? AND role = "staff" LIMIT 1');
+        if ($stmt) {
+            $stmt->bind_param('s', $email);
+            $stmt->execute();
+            $res = $stmt->get_result();
+            if ($res && $res->num_rows === 1) {
+                $user = $res->fetch_assoc();
+                $stored = $user['password'];
+                // plaintext comparison (project uses plaintext passwords)
+                if (hash_equals((string)$stored, (string)$password)) {
+                    // set session similar to global login
+                    $_SESSION['user_id'] = (int)$user['id'];
+                    $_SESSION['user_name'] = $user['name'];
+                    $_SESSION['user_email'] = $user['email'];
+                    $_SESSION['user_role'] = $user['role'];
 
-        $normalizedId = strtoupper($staffId);
-        if (isset($validStaff[$normalizedId]) && $validStaff[$normalizedId] === $password) {
-            // Successful login
-            $_SESSION['staff_logged_in'] = true;
-            $_SESSION['staff_id'] = $normalizedId;
+                    if ($remember) {
+                        setcookie('staff_remember', $user['email'], time() + (30 * 24 * 60 * 60), '/');
+                    }
 
-            if ($remember) {
-                // Set a simple remember cookie for demo purposes (do not store plaintext in production)
-                setcookie('staff_remember', $normalizedId, time() + (30 * 24 * 60 * 60), '/');
+                    $stmt->close();
+                    $conn->close();
+                    header('Location: staff-orders.php');
+                    exit;
+                }
             }
-
-            // Redirect to staff orders page after successful login
-            header('Location: staff-orders.php');
-            exit;
-        } else {
-            $errorMessage = 'Invalid Staff ID or password.';
+            $stmt->close();
         }
+        $conn->close();
+        $errorMessage = 'Invalid email or password.';
     }
 }
 ?>
@@ -58,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title>Staff Login - Skyline Coffee Shop</title>
     <!-- Use the staff orders stylesheet so the login page matches the orders page appearance -->
-    <link rel="stylesheet" href="../CSS/staff-orders.css">
+    <link rel="stylesheet" href="../css/staff/staff-orders.css">
     <link rel="icon" href="../Images/Brown Modern Circle Coffee Shop Logo.png">
 </head>
 
@@ -70,9 +75,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <form id="staffLoginForm" class="login-form" action="" method="post" novalidate>
                 <div class="form-group">
-                    <label for="staffId">Staff ID</label>
-                    <input id="staffId" name="staffId" type="text" required placeholder="e.g., S1234"
-                        aria-required="true" value="<?php echo $staffIdValue; ?>" />
+                    <label for="email">Email</label>
+                    <input id="email" name="email" type="email" required placeholder="you@domain.com"
+                        aria-required="true" value="<?php echo $emailValue; ?>" />
                 </div>
                 <div class="form-group" style="position:relative;">
                     <label for="password">Password</label>
@@ -155,15 +160,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <script>
         // Optional client-side validation can remain but should not block normal form submission.
-        (function () {
+                (function () {
             const form = document.getElementById('staffLoginForm');
             const errorEl = form.querySelector('.error');
             form.addEventListener('submit', function () {
                 errorEl.style.display = 'none';
-                const id = document.getElementById('staffId').value.trim();
+                const email = document.getElementById('email').value.trim();
                 const pw = document.getElementById('password').value;
-                if (!id) { errorEl.textContent = 'Please enter your Staff ID.'; errorEl.style.display = 'block'; }
-                else if (!pw || pw.length < 6) { errorEl.textContent = 'Password must be at least 6 characters.'; errorEl.style.display = 'block'; }
+                if (!email) { errorEl.textContent = 'Please enter your email.'; errorEl.style.display = 'block'; }
+                else if (!pw) { errorEl.textContent = 'Password is required.'; errorEl.style.display = 'block'; }
             });
 
             // Password visibility toggle

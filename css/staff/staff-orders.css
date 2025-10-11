@@ -5,7 +5,7 @@ html {
 body {
   margin: 0;
   font-family: "Open Sans", Arial, sans-serif;
-  background-image: url("../Images/Background.png");
+  background-image: url("../../resources/Background.png");
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -82,6 +82,18 @@ body {
   border-radius: 6px;
 }
 
+/* Logout button style to match admin */
+.nav-links a.logout-btn {
+  background-color: #e74c3c;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+.nav-links a.logout-btn:hover {
+  background-color: #c0392b;
+  color: #fff;
+}
+
 .orders-box {
   background-color: rgba(255, 255, 255, 0.7);
   padding: 60px;
@@ -102,7 +114,6 @@ body {
   width: 120px;
   margin-bottom: 20px;
 }
-
 
 .login-row {
   display: flex;
@@ -284,10 +295,43 @@ td {
 }
 
 .menu-img {
-  width: 100px;
-  height: 100px;
-  object-fit: cover;
+  /* allow images to scale without cropping */
+  max-width: 120px;
+  max-height: 120px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #fff;
+  padding: 6px;
   border-radius: 8px;
+  display: block;
+}
+
+/* generic thumbnail class used across staff pages */
+.thumb {
+  max-width: 120px;
+  max-height: 120px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #fff;
+  padding: 6px;
+  border-radius: 8px;
+  display: block;
+}
+
+.item-with-thumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.item-name {
+  font-weight: 600;
+}
+
+/* prevent table cells from clipping images */
+td {
+  vertical-align: middle;
 }
 
 .links {
@@ -423,5 +467,4 @@ td {
     padding: 8px 12px;
     font-size: 14px;
   }
-
 }

@@ -212,14 +212,25 @@ try {
     $error_message = "Failed to fetch products. Please try again. " . $e->getMessage();
 }
 // Get unique categories for filter
-try {
-    $stmt = $conn->query("SELECT DISTINCT category FROM products WHERE category IS NOT NULL ORDER BY category");
+// Use defensive checks in case the query fails and returns false
+$categories = array();
+$categories_query = "SELECT DISTINCT category FROM products WHERE category IS NOT NULL ORDER BY category";
+$stmt = $conn->query($categories_query);
+if ($stmt === false) {
+    // Log or expose the error for debugging in development.
+    // In production, consider logging this to a file instead of echoing.
+    $error_message = isset($error_message) ? $error_message : null;
+    $query_error = $conn->error;
+    if ($query_error) {
+        // Append to any existing error_message for visibility
+        $error_message = ($error_message ? $error_message . ' ' : '') . "Category query failed: " . $query_error;
+    }
+    // Keep categories as empty array
     $categories = array();
+} else {
     while ($row = $stmt->fetch_array(MYSQLI_NUM)) {
         $categories[] = $row[0];
     }
-} catch (Exception $e) {
-    $categories = array();
 }
 ?>
 
@@ -240,6 +251,7 @@ try {
                 <li><a href="manage-employees.php">Manage Employees</a></li>
                 <li><a href="orders.php">Orders</a></li>
                 <li><a href="manage-users.php">Manage Users</a></li>
+                <li><a href="adminprofile.php">Profile</a></li>
                 <li><a href="manage-products.php" class="active">Manage Products</a></li>
                 <li><a href="manage-coupons.php">Manage Coupons</a></li>
                 <li><a href="logout.php" class="logout-btn">Logout</a></li>

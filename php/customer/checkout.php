@@ -70,33 +70,87 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_coupon'])) {
 
 // Handle order placement
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
+    // prepare a debug log directory
+    $logDir = __DIR__ . '/logs';
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0777, true);
+    }
+    $logFile = $logDir . '/order_debug.log';
+
+    // sanitize and validate payment method from form
+    $paymentMethod = '';
+    if (isset($_POST['payment_method']) && $_POST['payment_method'] !== '') {
+        $paymentMethod = trim($_POST['payment_method']);
+    } elseif (isset($_POST['payment'])) {
+        $paymentMethod = trim($_POST['payment']);
+    }
+    $allowedMethods = ['cash', 'bkash', 'card'];
+    if (!in_array($paymentMethod, $allowedMethods, true)) {
+        $paymentMethod = 'cash';
+    }
+
     $conn->begin_transaction();
     try {
         // Create orders for each cart item
-        $stmt = $conn->prepare("
-            INSERT INTO orders (userId, productId, quantity, couponId, status) 
-            VALUES (?, ?, ?, ?, 'pending')
-        ");
-        
-        foreach ($cartItems as $item) {
-            $stmt->bind_param("iiis", $userId, $item['product_id'], $item['quantity'], $couponId);
-            $stmt->execute();
+        // Handle nullable coupon: prepare two statements depending on whether coupon applied
+        if ($couponId) {
+            $insertSql = "INSERT INTO orders (userId, productId, quantity, couponId, payment_method, status) VALUES (?, ?, ?, ?, ?, 'pending')";
+            $insertStmt = $conn->prepare($insertSql);
+            if (!$insertStmt) throw new Exception('Prepare failed: ' . $conn->error);
+            foreach ($cartItems as $item) {
+                // types: userId (i), productId (i), quantity (i), couponId (i), payment_method (s)
+                $ok = $insertStmt->bind_param("iiiis", $userId, $item['product_id'], $item['quantity'], $couponId, $paymentMethod);
+                if ($ok === false) throw new Exception('Bind failed: ' . $insertStmt->error);
+                if (!$insertStmt->execute()) throw new Exception('Execute failed: ' . $insertStmt->error);
+            }
+            $insertStmt->close();
+        } else {
+            $insertSql = "INSERT INTO orders (userId, productId, quantity, payment_method, status) VALUES (?, ?, ?, ?, 'pending')";
+            $insertStmt = $conn->prepare($insertSql);
+            if (!$insertStmt) throw new Exception('Prepare failed: ' . $conn->error);
+            foreach ($cartItems as $item) {
+                // types: userId (i), productId (i), quantity (i), payment_method (s)
+                $ok = $insertStmt->bind_param("iiis", $userId, $item['product_id'], $item['quantity'], $paymentMethod);
+                if ($ok === false) throw new Exception('Bind failed: ' . $insertStmt->error);
+                if (!$insertStmt->execute()) throw new Exception('Execute failed: ' . $insertStmt->error);
+            }
+            $insertStmt->close();
         }
-        $stmt->close();
-        
+
         // Clear cart
         $stmt = $conn->prepare("DELETE FROM cart WHERE userId = ?");
+        if (!$stmt) throw new Exception('Prepare failed: ' . $conn->error);
         $stmt->bind_param("i", $userId);
-        $stmt->execute();
+        if (!$stmt->execute()) throw new Exception('Execute failed: ' . $stmt->error);
         $stmt->close();
-        
+
         $conn->commit();
-        
+
+        // Debug log success
+        $entry = [
+            'ts' => date('c'),
+            'userId' => $userId,
+            'couponId' => $couponId,
+            'cartItems' => $cartItems,
+            'result' => 'success'
+        ];
+        @file_put_contents($logFile, json_encode($entry, JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND | LOCK_EX);
+
         header('Location: order-success.php');
         exit();
     } catch (Exception $e) {
         $conn->rollback();
         $error = "Error placing order: " . $e->getMessage();
+        // Debug log error
+        $entry = [
+            'ts' => date('c'),
+            'userId' => $userId,
+            'couponId' => $couponId,
+            'cartItems' => $cartItems,
+            'result' => 'error',
+            'message' => $e->getMessage()
+        ];
+        @file_put_contents($logFile, json_encode($entry, JSON_UNESCAPED_UNICODE) . PHP_EOL, FILE_APPEND | LOCK_EX);
     }
 }
 ?>
@@ -185,12 +239,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
                                 <label for="cash">Cash Payment</label>
                                 <p class="payment-note">Pay when you pick up your order</p>
                             </div>
+                            <div class="payment-option">
+                                <input type="radio" id="bkash" name="payment" value="bkash">
+                                <label for="bkash">Bkash</label>
+                            </div>
+                            <div class="payment-option">
+                                <input type="radio" id="card" name="payment" value="card">
+                                <label for="card">Card</label>
+                            </div>
                         </div>
 
                         <form method="POST" class="place-order-form">
                             <?php if ($couponId): ?>
                                 <input type="hidden" name="coupon_id" value="<?php echo $couponId; ?>">
                             <?php endif; ?>
+                            <!-- Mirror selected method into payment_method for server-side processing -->
+                            <input type="hidden" name="payment_method" value="">
                             <button type="submit" name="place_order" class="btn btn-primary btn-large">Place Order</button>
                         </form>
                     </div>
